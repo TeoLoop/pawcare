@@ -18,6 +18,7 @@ import {
 } from '@/lib/date-utils';
 import {
   INITIAL_PET,
+  INITIAL_PETS,
   INITIAL_SETTINGS,
   INITIAL_MEDICATIONS,
   buildInitialScheduledDoses,
@@ -25,24 +26,28 @@ import {
   INITIAL_VET_VISITS,
   INITIAL_DOCUMENTS,
 } from './mock-data';
+import { isLiveSupabaseConfigured } from '@/lib/supabase/client';
+import { SupabaseCloudRepository } from '@/lib/supabase/cloud-repository';
 
 const STORAGE_KEYS = {
-  PET: 'kira_pet',
-  SETTINGS: 'kira_settings',
-  MEDICATIONS: 'kira_medications',
-  DOSES: 'kira_scheduled_doses',
-  DOSE_LOGS: 'kira_dose_logs',
-  SYMPTOMS: 'kira_symptoms',
-  INVENTORY_EVENTS: 'kira_inventory_events',
-  VET_VISITS: 'kira_vet_visits',
-  DOCUMENTS: 'kira_documents',
-  NOTIFICATIONS: 'kira_notifications',
-  NOTIFICATION_ATTEMPTS: 'kira_notification_attempts',
+  PETS: 'pawcare_pets',
+  ACTIVE_PET_ID: 'pawcare_active_pet_id',
+  SETTINGS: 'pawcare_settings',
+  MEDICATIONS: 'pawcare_medications',
+  DOSES: 'pawcare_scheduled_doses',
+  DOSE_LOGS: 'pawcare_dose_logs',
+  SYMPTOMS: 'pawcare_symptoms',
+  INVENTORY_EVENTS: 'pawcare_inventory_events',
+  VET_VISITS: 'pawcare_vet_visits',
+  DOCUMENTS: 'pawcare_documents',
+  NOTIFICATIONS: 'pawcare_notifications',
+  NOTIFICATION_ATTEMPTS: 'pawcare_notification_attempts',
 };
 
 // Memory store fallback for SSR
 class AppState {
-  pet: Pet = { ...INITIAL_PET };
+  pets: Pet[] = [...INITIAL_PETS];
+  activePetId: string = INITIAL_PET.id;
   settings: UserSettings = { ...INITIAL_SETTINGS };
   medications: Medication[] = [...INITIAL_MEDICATIONS];
   scheduledDoses: ScheduledDose[] = buildInitialScheduledDoses();
@@ -85,7 +90,17 @@ function saveToStorage<T>(key: string, value: T): void {
 export class KiraRepository {
   private static init() {
     if (isClient() && !memoryState.initialized) {
-      memoryState.pet = loadFromStorage(STORAGE_KEYS.PET, memoryState.pet);
+      memoryState.pets = loadFromStorage(STORAGE_KEYS.PETS, memoryState.pets);
+      // Migration from single-pet key if found
+      const legacyPet = loadFromStorage<Pet | null>('kira_pet', null);
+      if (legacyPet && !memoryState.pets.some((p) => p.id === legacyPet.id)) {
+        memoryState.pets.push(legacyPet);
+      }
+      memoryState.activePetId = loadFromStorage(
+        STORAGE_KEYS.ACTIVE_PET_ID,
+        memoryState.pets[0]?.id || INITIAL_PET.id
+      );
+
       memoryState.settings = loadFromStorage(STORAGE_KEYS.SETTINGS, memoryState.settings);
       memoryState.medications = loadFromStorage(STORAGE_KEYS.MEDICATIONS, memoryState.medications);
       memoryState.scheduledDoses = loadFromStorage(STORAGE_KEYS.DOSES, memoryState.scheduledDoses);
@@ -100,23 +115,127 @@ export class KiraRepository {
     }
   }
 
-  // --- PET & SETTINGS ---
-  static getPet(): Pet {
+  // --- MULTI-PET MANAGEMENT ---
+  static getPets(): Pet[] {
     this.init();
-    return memoryState.pet;
+    return memoryState.pets;
   }
 
-  static updatePet(data: Partial<Pet>): Pet {
+  static getActivePetId(): string {
     this.init();
-    memoryState.pet = {
-      ...memoryState.pet,
+    return memoryState.activePetId;
+  }
+
+  static getActivePet(): Pet {
+    this.init();
+    const found = memoryState.pets.find((p) => p.id === memoryState.activePetId);
+    return found || memoryState.pets[0] || { ...INITIAL_PET };
+  }
+
+  static getPet(id?: string): Pet {
+    this.init();
+    if (id) {
+      const found = memoryState.pets.find((p) => p.id === id);
+      if (found) return found;
+    }
+    return this.getActivePet();
+  }
+
+  static setActivePetId(petId: string): void {
+    this.init();
+    const exists = memoryState.pets.some((p) => p.id === petId);
+    if (exists) {
+      memoryState.activePetId = petId;
+      saveToStorage(STORAGE_KEYS.ACTIVE_PET_ID, petId);
+      if (isClient()) {
+        window.dispatchEvent(new CustomEvent('pawcare_pet_changed', { detail: { petId } }));
+      }
+    }
+  }
+
+  static addPet(data: Omit<Pet, 'id' | 'created_at' | 'updated_at'>): Pet {
+    this.init();
+    const now = new Date().toISOString();
+    const newPet: Pet = {
       ...data,
-      updated_at: new Date().toISOString(),
+      id: `pet-${Date.now()}`,
+      created_at: now,
+      updated_at: now,
     };
-    saveToStorage(STORAGE_KEYS.PET, memoryState.pet);
-    return memoryState.pet;
+    memoryState.pets.push(newPet);
+    saveToStorage(STORAGE_KEYS.PETS, memoryState.pets);
+    this.setActivePetId(newPet.id);
+
+    if (isClient() && isLiveSupabaseConfigured()) {
+      SupabaseCloudRepository.addPet(newPet).catch((err) =>
+        console.warn('[CloudSync] addPet cloud error:', err)
+      );
+    }
+
+    return newPet;
   }
 
+  static updatePet(petIdOrData: string | Partial<Pet>, data?: Partial<Pet>): Pet {
+    this.init();
+    let targetId: string;
+    let updates: Partial<Pet>;
+
+    if (typeof petIdOrData === 'string') {
+      targetId = petIdOrData;
+      updates = data || {};
+    } else {
+      targetId = memoryState.activePetId;
+      updates = petIdOrData;
+    }
+
+    const idx = memoryState.pets.findIndex((p) => p.id === targetId);
+    if (idx !== -1) {
+      memoryState.pets[idx] = {
+        ...memoryState.pets[idx],
+        ...updates,
+        updated_at: new Date().toISOString(),
+      };
+      saveToStorage(STORAGE_KEYS.PETS, memoryState.pets);
+
+      if (isClient() && isLiveSupabaseConfigured()) {
+        SupabaseCloudRepository.updatePet(targetId, updates).catch((err) =>
+          console.warn('[CloudSync] updatePet cloud error:', err)
+        );
+      }
+
+      if (isClient()) {
+        window.dispatchEvent(new CustomEvent('pawcare_pet_changed', { detail: { petId: targetId } }));
+      }
+      return memoryState.pets[idx];
+    }
+    return this.getActivePet();
+  }
+
+  static deletePet(petId: string): boolean {
+    this.init();
+    if (memoryState.pets.length <= 1) {
+      return false; // Preserve at least one pet
+    }
+    memoryState.pets = memoryState.pets.filter((p) => p.id !== petId);
+    if (memoryState.activePetId === petId) {
+      memoryState.activePetId = memoryState.pets[0].id;
+      saveToStorage(STORAGE_KEYS.ACTIVE_PET_ID, memoryState.activePetId);
+    }
+    saveToStorage(STORAGE_KEYS.PETS, memoryState.pets);
+
+    if (isClient() && isLiveSupabaseConfigured()) {
+      SupabaseCloudRepository.deletePet(petId).catch((err) =>
+        console.warn('[CloudSync] deletePet cloud error:', err)
+      );
+    }
+
+    if (isClient()) {
+      window.dispatchEvent(new CustomEvent('pawcare_pet_changed', { detail: { petId: memoryState.activePetId } }));
+    }
+    return true;
+  }
+
+  // --- SETTINGS ---
   static getSettings(): UserSettings {
     this.init();
     return memoryState.settings;
@@ -130,13 +249,23 @@ export class KiraRepository {
       updated_at: new Date().toISOString(),
     };
     saveToStorage(STORAGE_KEYS.SETTINGS, memoryState.settings);
+
+    if (isClient() && isLiveSupabaseConfigured()) {
+      SupabaseCloudRepository.updateUserSettings(memoryState.settings).catch((err) =>
+        console.warn('[CloudSync] updateUserSettings cloud error:', err)
+      );
+    }
+
     return memoryState.settings;
   }
 
   // --- MEDICATIONS ---
-  static getMedications(): Medication[] {
+  static getMedications(petId?: string): Medication[] {
     this.init();
-    return memoryState.medications;
+    const targetPetId = petId || memoryState.activePetId;
+    return targetPetId === 'all'
+      ? memoryState.medications
+      : memoryState.medications.filter((m) => m.pet_id === targetPetId);
   }
 
   static getMedicationById(id: string): Medication | undefined {
@@ -152,6 +281,8 @@ export class KiraRepository {
     const now = new Date().toISOString();
     let med: Medication;
 
+    const assignedPetId = data.pet_id || memoryState.activePetId;
+
     if (data.id) {
       // Update existing
       const existingIdx = memoryState.medications.findIndex((m) => m.id === data.id);
@@ -161,6 +292,7 @@ export class KiraRepository {
       med = {
         ...existing,
         ...data,
+        pet_id: assignedPetId,
         id: data.id,
         updated_at: now,
       };
@@ -186,6 +318,7 @@ export class KiraRepository {
       const id = `med-${Date.now()}`;
       med = {
         ...data,
+        pet_id: assignedPetId,
         id,
         created_at: now,
         updated_at: now,
@@ -215,6 +348,19 @@ export class KiraRepository {
     }
 
     saveToStorage(STORAGE_KEYS.MEDICATIONS, memoryState.medications);
+
+    if (isClient() && isLiveSupabaseConfigured()) {
+      if (data.id) {
+        SupabaseCloudRepository.updateMedication(data.id, med).catch((err) =>
+          console.warn('[CloudSync] updateMedication cloud error:', err)
+        );
+      } else {
+        SupabaseCloudRepository.addMedication(med).catch((err) =>
+          console.warn('[CloudSync] addMedication cloud error:', err)
+        );
+      }
+    }
+
     return med;
   }
 
@@ -308,12 +454,13 @@ export class KiraRepository {
   }
 
   // --- SCHEDULED DOSES & ACTIONS ---
-  static getScheduledDoses(date?: string): ScheduledDose[] {
+  static getScheduledDoses(date?: string, petId?: string): ScheduledDose[] {
     this.init();
     const targetDate = date || getLocalDateString();
+    const targetPetId = petId || memoryState.activePetId;
     
     return memoryState.scheduledDoses
-      .filter((d) => !date || d.scheduled_date === targetDate)
+      .filter((d) => (!date || d.scheduled_date === targetDate) && (targetPetId === 'all' || d.pet_id === targetPetId))
       .map((d) => {
         const med = memoryState.medications.find((m) => m.id === d.medication_id);
         const log = memoryState.doseLogs.find((l) => l.scheduled_dose_id === d.id);
@@ -343,7 +490,6 @@ export class KiraRepository {
   /**
    * Records dose administration or skipping.
    * STRICT GUARANTEE: Stock is ONLY deducted when status is 'administered'.
-   * Never deducted on 'skipped', 'delayed', or failed notifications.
    * Single-use token invalidation prevents re-use of WhatsApp confirmation links.
    */
   static recordDoseAction(input: {
@@ -412,12 +558,22 @@ export class KiraRepository {
         memoryState.scheduledDoses[doseIdx] = {
           ...memoryState.scheduledDoses[doseIdx],
           status: input.status,
-          // Invalidate token so it cannot be reused
           confirmation_token: undefined,
           token_expires_at: undefined,
           updated_at: now,
         };
         saveToStorage(STORAGE_KEYS.DOSES, memoryState.scheduledDoses);
+      }
+    }
+
+    if (isClient() && isLiveSupabaseConfigured()) {
+      SupabaseCloudRepository.recordDoseLog(log).catch((err) =>
+        console.warn('[CloudSync] recordDoseLog cloud error:', err)
+      );
+      if (input.scheduled_dose_id) {
+        SupabaseCloudRepository.updateDoseStatus(input.scheduled_dose_id, input.status).catch((err) =>
+          console.warn('[CloudSync] updateDoseStatus cloud error:', err)
+        );
       }
     }
 
@@ -442,7 +598,6 @@ export class KiraRepository {
 
     if (log.status !== newStatus && med && med.track_inventory) {
       if (log.status === 'administered' && newStatus === 'skipped') {
-        // Revert deduction
         med.current_stock = Number((med.current_stock + log.inventory_deducted).toFixed(2));
         memoryState.inventoryEvents.unshift({
           id: `inv-${Date.now()}`,
@@ -455,7 +610,6 @@ export class KiraRepository {
         });
         log.inventory_deducted = 0;
       } else if (log.status === 'skipped' && newStatus === 'administered') {
-        // Apply deduction
         const deduction = med.dose_amount;
         med.current_stock = Math.max(0, Number((med.current_stock - deduction).toFixed(2)));
         memoryState.inventoryEvents.unshift({
@@ -477,7 +631,6 @@ export class KiraRepository {
     log.notes = `${log.notes ? log.notes + ' | ' : ''}Corrección auditada [${now}]: ${correctionReason}`;
     log.updated_at = now;
 
-    // Also update associated scheduled dose if present
     if (log.scheduled_dose_id) {
       const doseIdx = memoryState.scheduledDoses.findIndex((d) => d.id === log.scheduled_dose_id);
       if (doseIdx !== -1) {
@@ -497,10 +650,15 @@ export class KiraRepository {
     status?: string;
     startDate?: string;
     endDate?: string;
+    petId?: string;
   }): DoseLog[] {
     this.init();
+    const targetPetId = filters?.petId || memoryState.activePetId;
     let logs = [...memoryState.doseLogs];
 
+    if (targetPetId && targetPetId !== 'all') {
+      logs = logs.filter((l) => l.pet_id === targetPetId);
+    }
     if (filters?.medicationId) {
       logs = logs.filter((l) => l.medication_id === filters.medicationId);
     }
@@ -521,25 +679,37 @@ export class KiraRepository {
   }
 
   // --- SYMPTOMS & HEALTH ---
-  static getSymptomLogs(): SymptomLog[] {
+  static getSymptomLogs(petId?: string): SymptomLog[] {
     this.init();
-    return [...memoryState.symptoms].sort((a, b) => b.logged_at.localeCompare(a.logged_at));
+    const targetPetId = petId || memoryState.activePetId;
+    const list = targetPetId === 'all'
+      ? memoryState.symptoms
+      : memoryState.symptoms.filter((s) => s.pet_id === targetPetId);
+    return [...list].sort((a, b) => b.logged_at.localeCompare(a.logged_at));
   }
 
   static addSymptomLog(
-    data: Omit<SymptomLog, 'id' | 'pet_id' | 'created_at' | 'updated_at'>
+    data: Omit<SymptomLog, 'id' | 'pet_id' | 'created_at' | 'updated_at'> & { pet_id?: string }
   ): SymptomLog {
     this.init();
     const now = new Date().toISOString();
+    const assignedPetId = data.pet_id || memoryState.activePetId;
     const log: SymptomLog = {
       ...data,
       id: `symptom-${Date.now()}`,
-      pet_id: memoryState.pet.id,
+      pet_id: assignedPetId,
       created_at: now,
       updated_at: now,
     };
     memoryState.symptoms.unshift(log);
     saveToStorage(STORAGE_KEYS.SYMPTOMS, memoryState.symptoms);
+
+    if (isClient() && isLiveSupabaseConfigured()) {
+      SupabaseCloudRepository.addSymptomLog(log).catch((err) =>
+        console.warn('[CloudSync] addSymptomLog cloud error:', err)
+      );
+    }
+
     return log;
   }
 
@@ -569,10 +739,11 @@ export class KiraRepository {
     return med;
   }
 
-  static getStockForecasts(): StockForecast[] {
+  static getStockForecasts(petId?: string): StockForecast[] {
     this.init();
+    const targetPetId = petId || memoryState.activePetId;
     return memoryState.medications
-      .filter((m) => m.track_inventory && m.is_active)
+      .filter((m) => m.track_inventory && m.is_active && (targetPetId === 'all' || m.pet_id === targetPetId))
       .map((med) => {
         let dailyConsumption = 0;
         if (med.schedule && med.schedule.times_of_day.length > 0) {
@@ -607,23 +778,37 @@ export class KiraRepository {
   }
 
   // --- VET VISITS & DOCUMENTS ---
-  static getVetVisits(): VetVisit[] {
+  static getVetVisits(petId?: string): VetVisit[] {
     this.init();
-    return [...memoryState.vetVisits].sort((a, b) => b.visit_date.localeCompare(a.visit_date));
+    const targetPetId = petId || memoryState.activePetId;
+    const list = targetPetId === 'all'
+      ? memoryState.vetVisits
+      : memoryState.vetVisits.filter((v) => v.pet_id === targetPetId);
+    return [...list].sort((a, b) => b.visit_date.localeCompare(a.visit_date));
   }
 
-  static addVetVisit(data: Omit<VetVisit, 'id' | 'pet_id' | 'created_at' | 'updated_at'>): VetVisit {
+  static addVetVisit(
+    data: Omit<VetVisit, 'id' | 'pet_id' | 'created_at' | 'updated_at'> & { pet_id?: string }
+  ): VetVisit {
     this.init();
     const now = new Date().toISOString();
+    const assignedPetId = data.pet_id || memoryState.activePetId;
     const visit: VetVisit = {
       ...data,
       id: `vet-${Date.now()}`,
-      pet_id: memoryState.pet.id,
+      pet_id: assignedPetId,
       created_at: now,
       updated_at: now,
     };
     memoryState.vetVisits.unshift(visit);
     saveToStorage(STORAGE_KEYS.VET_VISITS, memoryState.vetVisits);
+
+    if (isClient() && isLiveSupabaseConfigured()) {
+      SupabaseCloudRepository.addVetVisit(visit).catch((err) =>
+        console.warn('[CloudSync] addVetVisit cloud error:', err)
+      );
+    }
+
     return visit;
   }
 
@@ -633,22 +818,36 @@ export class KiraRepository {
     saveToStorage(STORAGE_KEYS.VET_VISITS, memoryState.vetVisits);
   }
 
-  static getDocuments(): MedicalDocument[] {
+  static getDocuments(petId?: string): MedicalDocument[] {
     this.init();
-    return [...memoryState.documents].sort((a, b) => b.document_date.localeCompare(a.document_date));
+    const targetPetId = petId || memoryState.activePetId;
+    const list = targetPetId === 'all'
+      ? memoryState.documents
+      : memoryState.documents.filter((d) => d.pet_id === targetPetId);
+    return [...list].sort((a, b) => b.document_date.localeCompare(a.document_date));
   }
 
-  static addDocument(data: Omit<MedicalDocument, 'id' | 'pet_id' | 'created_at'>): MedicalDocument {
+  static addDocument(
+    data: Omit<MedicalDocument, 'id' | 'pet_id' | 'created_at'> & { pet_id?: string }
+  ): MedicalDocument {
     this.init();
     const now = new Date().toISOString();
+    const assignedPetId = data.pet_id || memoryState.activePetId;
     const doc: MedicalDocument = {
       ...data,
       id: `doc-${Date.now()}`,
-      pet_id: memoryState.pet.id,
+      pet_id: assignedPetId,
       created_at: now,
     };
     memoryState.documents.unshift(doc);
     saveToStorage(STORAGE_KEYS.DOCUMENTS, memoryState.documents);
+
+    if (isClient() && isLiveSupabaseConfigured()) {
+      SupabaseCloudRepository.addMedicalDocument(doc).catch((err) =>
+        console.warn('[CloudSync] addMedicalDocument cloud error:', err)
+      );
+    }
+
     return doc;
   }
 
@@ -692,5 +891,62 @@ export class KiraRepository {
   static getNotificationAttempts(): NotificationAttempt[] {
     this.init();
     return [...memoryState.notificationAttempts].sort((a, b) => b.attempted_at.localeCompare(a.attempted_at));
+  }
+
+  // --- CLOUD HYDRATION SETTERS ---
+  static setPetsFromCloud(pets: Pet[]): void {
+    if (!pets || pets.length === 0) return;
+    this.init();
+    memoryState.pets = pets;
+    if (!pets.some((p) => p.id === memoryState.activePetId)) {
+      memoryState.activePetId = pets[0].id;
+      saveToStorage(STORAGE_KEYS.ACTIVE_PET_ID, memoryState.activePetId);
+    }
+    saveToStorage(STORAGE_KEYS.PETS, memoryState.pets);
+    if (isClient()) {
+      window.dispatchEvent(new CustomEvent('pawcare_pet_changed', { detail: { petId: memoryState.activePetId } }));
+    }
+  }
+
+  static setMedicationsFromCloud(medications: Medication[]): void {
+    if (!medications) return;
+    this.init();
+    memoryState.medications = medications;
+    saveToStorage(STORAGE_KEYS.MEDICATIONS, memoryState.medications);
+  }
+
+  static setScheduledDosesFromCloud(doses: ScheduledDose[]): void {
+    if (!doses) return;
+    this.init();
+    memoryState.scheduledDoses = doses;
+    saveToStorage(STORAGE_KEYS.DOSES, memoryState.scheduledDoses);
+  }
+
+  static setDoseLogsFromCloud(logs: DoseLog[]): void {
+    if (!logs) return;
+    this.init();
+    memoryState.doseLogs = logs;
+    saveToStorage(STORAGE_KEYS.DOSE_LOGS, memoryState.doseLogs);
+  }
+
+  static setSymptomsFromCloud(symptoms: SymptomLog[]): void {
+    if (!symptoms) return;
+    this.init();
+    memoryState.symptoms = symptoms;
+    saveToStorage(STORAGE_KEYS.SYMPTOMS, memoryState.symptoms);
+  }
+
+  static setVetVisitsFromCloud(visits: VetVisit[]): void {
+    if (!visits) return;
+    this.init();
+    memoryState.vetVisits = visits;
+    saveToStorage(STORAGE_KEYS.VET_VISITS, memoryState.vetVisits);
+  }
+
+  static setDocumentsFromCloud(docs: MedicalDocument[]): void {
+    if (!docs) return;
+    this.init();
+    memoryState.documents = docs;
+    saveToStorage(STORAGE_KEYS.DOCUMENTS, memoryState.documents);
   }
 }

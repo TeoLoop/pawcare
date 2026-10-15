@@ -35,6 +35,12 @@ export default function HistorialPage() {
 
   useEffect(() => {
     loadData();
+
+    const handlePetChange = () => {
+      loadData();
+    };
+    window.addEventListener('pawcare_pet_changed', handlePetChange);
+    return () => window.removeEventListener('pawcare_pet_changed', handlePetChange);
   }, [selectedMed, selectedStatus]);
 
   const totalLogs = logs.length;

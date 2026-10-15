@@ -35,6 +35,12 @@ export default function SaludPage() {
 
   useEffect(() => {
     loadData();
+
+    const handlePetChange = () => {
+      loadData();
+    };
+    window.addEventListener('pawcare_pet_changed', handlePetChange);
+    return () => window.removeEventListener('pawcare_pet_changed', handlePetChange);
   }, []);
 
   const handleDownloadPdf = () => {

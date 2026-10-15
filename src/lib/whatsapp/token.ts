@@ -13,5 +13,5 @@ export function generateConfirmationToken(): string {
  */
 export function buildDoseIdempotencyKey(scheduledDoseId: string, scheduledForIso: string): string {
   const normalizedIso = new Date(scheduledForIso).toISOString();
-  return `kira-dose-${scheduledDoseId}-${normalizedIso}`;
+  return `pawcare-dose-${scheduledDoseId}-${normalizedIso}`;
 }

@@ -1,11 +1,13 @@
 // src/components/layout/sidebar.tsx
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, Pill, History, Activity, Settings, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { KiraRepository } from '@/lib/storage/repository';
+import { Pet } from '@/types/medication';
 
 const NAV_ITEMS = [
   { href: '/', label: 'Inicio', icon: Home },
@@ -17,6 +19,15 @@ const NAV_ITEMS = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [activePet, setActivePet] = useState<Pet>(KiraRepository.getActivePet());
+
+  useEffect(() => {
+    const handlePetChange = () => {
+      setActivePet(KiraRepository.getActivePet());
+    };
+    window.addEventListener('pawcare_pet_changed', handlePetChange);
+    return () => window.removeEventListener('pawcare_pet_changed', handlePetChange);
+  }, []);
 
   return (
     <aside className="hidden md:flex flex-col w-64 bg-white border-r border-[#E5E1D6] p-5 shrink-0 min-h-screen justify-between">
@@ -27,7 +38,7 @@ export function Sidebar() {
             <Heart className="w-5 h-5 fill-[#3E5A4D]" />
           </div>
           <div>
-            <span className="font-bold text-lg tracking-tight text-[#222624]">Kira Care</span>
+            <span className="font-bold text-lg tracking-tight text-[#222624]">PawCare</span>
             <p className="text-[11px] text-[#606763] font-medium leading-tight">Salud & Medicación</p>
           </div>
         </div>
@@ -64,17 +75,22 @@ export function Sidebar() {
       </div>
 
       {/* Pet Card Mini in Sidebar */}
-      <div className="p-3.5 rounded-xl bg-[#FAF8F5] border border-[#EFECE5]">
+      <Link
+        href="/ajustes"
+        className="p-3.5 rounded-xl bg-[#FAF8F5] border border-[#EFECE5] hover:border-[#D3DFD7] transition-all block"
+      >
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-[#3E5A4D] text-white flex items-center justify-center font-bold text-xs">
-            K
+          <div className="w-8 h-8 rounded-full bg-[#3E5A4D] text-white flex items-center justify-center font-bold text-xs shrink-0">
+            {activePet.name.charAt(0).toUpperCase()}
           </div>
           <div className="overflow-hidden">
-            <p className="text-xs font-semibold text-[#222624] truncate">Kira</p>
-            <p className="text-[10px] text-[#606763] truncate">America/Montevideo</p>
+            <p className="text-xs font-semibold text-[#222624] truncate">{activePet.name}</p>
+            <p className="text-[10px] text-[#606763] truncate">
+              {activePet.species} {activePet.breed ? `• ${activePet.breed}` : ''}
+            </p>
           </div>
         </div>
-      </div>
+      </Link>
     </aside>
   );
 }

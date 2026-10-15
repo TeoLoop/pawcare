@@ -172,7 +172,7 @@ export function MedicationModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={medicationToEdit ? 'Editar Medicamento' : 'Añadir Medicamento para Kira'}
+      title={medicationToEdit ? 'Editar Medicamento' : `Añadir Medicamento para ${KiraRepository.getActivePet().name}`}
       description="Prescripción veterinaria, horarios y control de existencias"
       maxWidth="max-w-2xl"
     >

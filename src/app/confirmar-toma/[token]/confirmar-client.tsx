@@ -71,13 +71,13 @@ export function ConfirmarClient({ token }: { token: string }) {
         <div className="text-center mb-6">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#E9EFEA] text-[#274033] text-xs font-semibold tracking-wide uppercase mb-3">
             <Heart className="w-3.5 h-3.5 fill-[#3E5A4D] text-[#3E5A4D]" />
-            Kira Care • Confirmación Segura
+            PawCare • Confirmación Segura
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-[#222624]">
             Registro de Medicación
           </h1>
           <p className="text-sm text-[#606763] mt-1">
-            Enlace de un solo uso para registrar la toma de Kira
+            Enlace de un solo uso para registrar la toma prescrita
           </p>
         </div>
 
@@ -226,7 +226,7 @@ export function ConfirmarClient({ token }: { token: string }) {
                 className="inline-flex items-center gap-1.5 text-xs text-[#606763] hover:text-[#222624]"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
-                Abrir panel principal de Kira Care
+                Abrir panel principal de PawCare
               </Link>
             </div>
           </div>
@@ -234,7 +234,7 @@ export function ConfirmarClient({ token }: { token: string }) {
       </div>
 
       <footer className="text-center text-xs text-[#606763] py-4">
-        Kira Care • Cuidado responsable y seguimiento de salud
+        PawCare • Cuidado responsable y seguimiento de salud de mascotas
       </footer>
     </div>
   );

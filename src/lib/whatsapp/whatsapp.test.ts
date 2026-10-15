@@ -15,7 +15,7 @@ describe('WhatsApp Scheduler & Reliability Tests', () => {
     const key1 = buildDoseIdempotencyKey('dose-123', '2026-10-15T12:00:00.000Z');
     const key2 = buildDoseIdempotencyKey('dose-123', '2026-10-15T12:00:00.000Z');
     expect(key1).toBe(key2);
-    expect(key1).toContain('kira-dose-dose-123');
+    expect(key1).toContain('pawcare-dose-dose-123');
   });
 
   it('prevents enqueuing duplicate notification jobs for the same dose', () => {
@@ -42,14 +42,14 @@ describe('WhatsApp Scheduler & Reliability Tests', () => {
       medicationName: 'Meloxicam 1.5 mg/ml',
       scheduledTime: '09:00',
       instructions: 'Con el desayuno',
-      confirmationUrl: 'https://kiracare.app/confirmar-toma/test-token-123',
+      confirmationUrl: 'https://pawcare.app/confirmar-toma/test-token-123',
     });
 
-    expect(message).toContain('*Kira Care:* Recordatorio de medicación para Kira.');
+    expect(message).toContain('*PawCare:* Recordatorio de medicación para Kira.');
     expect(message).toContain('Meloxicam 1.5 mg/ml');
     expect(message).toContain('09:00');
     expect(message).toContain('Con el desayuno');
-    expect(message).toContain('https://kiracare.app/confirmar-toma/test-token-123');
+    expect(message).toContain('https://pawcare.app/confirmar-toma/test-token-123');
   });
 
   it('operates safely in simulation mode when Meta credentials are not configured', async () => {

@@ -47,7 +47,7 @@ export class WhatsAppCloudApiClient {
       ? `\n📋 Indicación: ${params.instructions}`
       : '\n📋 Consultá la pauta registrada antes de administrarla.';
 
-    return `*Kira Care:* Recordatorio de medicación para ${params.petName}.\n\n` +
+    return `*PawCare:* Recordatorio de medicación para ${params.petName}.\n\n` +
       `💊 Tratamiento: ${params.medicationName}\n` +
       `⏰ Horario previsto: ${params.scheduledTime}` +
       `${instructionLine}\n\n` +

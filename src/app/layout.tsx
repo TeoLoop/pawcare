@@ -4,8 +4,8 @@ import { AppShell } from '@/components/layout/app-shell';
 import { ThemeProvider } from '@/components/theme/theme-provider';
 
 export const metadata: Metadata = {
-  title: 'Kira Care — Gestión de Salud y Medicación',
-  description: 'Aplicación personal para gestionar la medicación, recordatorios de WhatsApp y seguimiento de salud de Kira.',
+  title: 'PawCare — Gestión de Salud y Medicación de Mascotas',
+  description: 'Aplicación para gestionar medicamentos, recordatorios fiables de WhatsApp y seguimiento de salud de tus mascotas.',
 };
 
 export default function RootLayout({

@@ -19,6 +19,8 @@ export const INITIAL_PET: Pet = {
   updated_at: new Date('2026-01-01').toISOString(),
 };
 
+export const INITIAL_PETS: Pet[] = [INITIAL_PET];
+
 export const INITIAL_SETTINGS: UserSettings = {
   id: 'settings-001',
   user_id: 'user-default-001',

@@ -25,7 +25,7 @@ export function generateVeterinarySummaryPdf(): jsPDF {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
   doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-  doc.text('KIRA CARE — RESUMEN CLÍNICO Y DE MEDICACIÓN', 14, y);
+  doc.text('PAWCARE — RESUMEN CLÍNICO Y DE MEDICACIÓN', 14, y);
   y += 6;
 
   doc.setFont('helvetica', 'normal');
@@ -193,7 +193,7 @@ export function generateVeterinarySummaryPdf(): jsPDF {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(mutedColor[0], mutedColor[1], mutedColor[2]);
-  doc.text('Generado automáticamente por Kira Care — Plataforma de Gestión de Salud Canina', 14, 287);
+  doc.text('Generado automáticamente por PawCare — Plataforma de Gestión de Salud de Mascotas', 14, 287);
 
   return doc;
 }

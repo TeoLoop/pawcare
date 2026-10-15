@@ -54,6 +54,12 @@ export default function HomePage() {
 
   useEffect(() => {
     refreshData();
+
+    const handlePetChange = () => {
+      refreshData();
+    };
+    window.addEventListener('pawcare_pet_changed', handlePetChange);
+    return () => window.removeEventListener('pawcare_pet_changed', handlePetChange);
   }, []);
 
   // Stats calculation
