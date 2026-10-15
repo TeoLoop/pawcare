@@ -949,4 +949,14 @@ export class KiraRepository {
     memoryState.documents = docs;
     saveToStorage(STORAGE_KEYS.DOCUMENTS, memoryState.documents);
   }
+
+  static setUserSettingsFromCloud(settings: UserSettings): void {
+    if (!settings) return;
+    this.init();
+    memoryState.settings = {
+      ...memoryState.settings,
+      ...settings,
+    };
+    saveToStorage(STORAGE_KEYS.SETTINGS, memoryState.settings);
+  }
 }

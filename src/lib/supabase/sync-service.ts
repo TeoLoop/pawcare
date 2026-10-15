@@ -121,6 +121,12 @@ export class CloudSyncService {
         KiraRepository.setDocumentsFromCloud(cloudDocs);
       }
 
+      // 8. Fetch user settings
+      const cloudSettings = await SupabaseCloudRepository.getUserSettings();
+      if (cloudSettings) {
+        KiraRepository.setUserSettingsFromCloud(cloudSettings);
+      }
+
       syncStatusState.lastSyncedAt = new Date().toISOString();
       syncStatusState.syncing = false;
 
