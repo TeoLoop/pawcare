@@ -1,6 +1,6 @@
-# Kira Care 🐾
+# PawCare 🐾
 
-Aplicación web personal para la gestión integral de medicamentos, recordatorios fiables por WhatsApp y seguimiento de salud de **Kira**.
+Aplicación web para la gestión integral de medicamentos, recordatorios fiables por WhatsApp y seguimiento de salud para tus mascotas (Kira y más).
 
 Diseñada con estética cálida, sobria y moderna (tonos crema, gris cálido y verde salvia), interfaz mobile-first con barra lateral en escritorio y barra inferior en móvil, persistencia real y arquitectura escalable.
 
@@ -30,7 +30,7 @@ Diseñada con estética cálida, sobria y moderna (tonos crema, gris cálido y v
 
 ```bash
 # 1. Navegar a la carpeta del proyecto
-cd kira-care
+cd pawcare
 
 # 2. Instalar dependencias
 npm install
