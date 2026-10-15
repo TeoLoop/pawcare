@@ -12,9 +12,13 @@ import {
   Download,
   CheckCircle2,
   Moon,
+  Sun,
+  Laptop,
 } from 'lucide-react';
+import { useTheme } from '@/components/theme/theme-provider';
 
 export default function AjustesPage() {
+  const { theme, setTheme } = useTheme();
   const [pet, setPet] = useState<Pet | null>(null);
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -269,7 +273,59 @@ export default function AjustesPage() {
           </div>
         </div>
 
-        {/* 3. System & Timezone info */}
+        {/* 3. Appearance (Modo Claro / Oscuro) */}
+        <div className="bg-white rounded-2xl border border-[#E5E1D6] p-5 shadow-xs space-y-4">
+          <div className="flex items-center gap-2.5 pb-3 border-b border-[#EFECE5]">
+            <Moon className="w-5 h-5 text-[#3E5A4D]" />
+            <div>
+              <h2 className="text-sm font-bold text-[#222624]">Apariencia & Modo Oscuro</h2>
+              <p className="text-[11px] text-[#606763]">Seleccioná el tema visual de la aplicación</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2.5">
+            <button
+              type="button"
+              onClick={() => setTheme('light')}
+              className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border text-xs font-semibold transition-all ${
+                theme === 'light'
+                  ? 'border-[#3E5A4D] bg-[#E9EFEA] text-[#274033] shadow-xs'
+                  : 'border-[#E5E1D6] bg-white text-[#606763] hover:bg-[#FAF8F5]'
+              }`}
+            >
+              <Sun className="w-4 h-4 text-[#C97A24]" />
+              <span>Modo Claro</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setTheme('dark')}
+              className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border text-xs font-semibold transition-all ${
+                theme === 'dark'
+                  ? 'border-[#3E5A4D] bg-[#E9EFEA] text-[#274033] shadow-xs'
+                  : 'border-[#E5E1D6] bg-white text-[#606763] hover:bg-[#FAF8F5]'
+              }`}
+            >
+              <Moon className="w-4 h-4 text-[#3E5A4D]" />
+              <span>Modo Oscuro</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setTheme('system')}
+              className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border text-xs font-semibold transition-all ${
+                theme === 'system'
+                  ? 'border-[#3E5A4D] bg-[#E9EFEA] text-[#274033] shadow-xs'
+                  : 'border-[#E5E1D6] bg-white text-[#606763] hover:bg-[#FAF8F5]'
+              }`}
+            >
+              <Laptop className="w-4 h-4 text-[#606763]" />
+              <span>Automático</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 4. System & Timezone info */}
         <div className="bg-white rounded-2xl border border-[#E5E1D6] p-5 shadow-xs space-y-3 text-xs">
           <div className="flex items-center gap-2.5 pb-2 border-b border-[#EFECE5]">
             <Shield className="w-5 h-5 text-[#3E5A4D]" />

@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer base {
   :root {
     --background: #FAF8F5;
@@ -43,6 +45,46 @@
     --radius: 0.875rem;
   }
 
+  .dark {
+    --background: #141715;
+    --foreground: #EDEBE6;
+
+    --card: #1C211E;
+    --card-foreground: #EDEBE6;
+    --card-subtle: #232925;
+
+    --popover: #1C211E;
+    --popover-foreground: #EDEBE6;
+
+    --primary: #4E7663;
+    --primary-hover: #5D8B75;
+    --primary-foreground: #FFFFFF;
+
+    --secondary: #223229;
+    --secondary-hover: #2B3E34;
+    --secondary-foreground: #CFDFD6;
+
+    --muted: #242926;
+    --muted-foreground: #9AA19C;
+
+    --accent: #272E2A;
+    --accent-foreground: #EDEBE6;
+
+    --destructive: #E05D50;
+    --destructive-foreground: #FFFFFF;
+
+    --warning: #E5953B;
+    --warning-foreground: #FFFFFF;
+
+    --success: #489B72;
+    --success-foreground: #FFFFFF;
+
+    --border: #2D3530;
+    --border-strong: #3F4943;
+    --input: #232925;
+    --ring: #4E7663;
+  }
+
   * {
     border-color: var(--border);
   }
@@ -54,10 +96,130 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     min-height: 100vh;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 }
 
-/* Custom subtle scrollbars & helpers */
+/* Dark mode theme overrides for natural, warm surfaces */
+.dark body {
+  background-color: #141715 !important;
+  color: #EDEBE6 !important;
+}
+
+.dark .bg-white {
+  background-color: #1C211E !important;
+  color: #EDEBE6;
+}
+
+.dark .bg-\[\#FAF8F5\] {
+  background-color: #171A18 !important;
+}
+
+.dark .bg-\[\#FAF8F5\]\/50 {
+  background-color: rgba(23, 26, 24, 0.5) !important;
+}
+
+.dark .bg-\[\#FAF8F5\]\/80 {
+  background-color: rgba(23, 26, 24, 0.8) !important;
+}
+
+.dark .bg-white\/80 {
+  background-color: rgba(28, 33, 30, 0.85) !important;
+}
+
+.dark .bg-white\/95 {
+  background-color: rgba(28, 33, 30, 0.95) !important;
+}
+
+.dark .bg-\[\#FFFDF9\] {
+  background-color: #262118 !important;
+}
+
+.dark .border-\[\#E5E1D6\] {
+  border-color: #2D3530 !important;
+}
+
+.dark .border-\[\#EFECE5\] {
+  border-color: #242A26 !important;
+}
+
+.dark .text-\[\#222624\] {
+  color: #EDEBE6 !important;
+}
+
+.dark .text-\[\#606763\] {
+  color: #9EA6A1 !important;
+}
+
+.dark .text-\[\#8E9490\] {
+  color: #79827D !important;
+}
+
+.dark .bg-\[\#E9EFEA\] {
+  background-color: #23342B !important;
+}
+
+.dark .text-\[\#274033\] {
+  color: #C3E2D1 !important;
+}
+
+.dark .border-\[\#D3DFD7\] {
+  border-color: #34483C !important;
+}
+
+.dark .bg-\[\#F4F8F5\] {
+  background-color: #1C2C23 !important;
+}
+
+.dark .bg-\[\#FFF5E6\],
+.dark .bg-\[\#FFF8EE\] {
+  background-color: #292015 !important;
+}
+
+.dark .border-\[\#FFE0B2\],
+.dark .border-\[\#FFE7C4\] {
+  border-color: #4A3821 !important;
+}
+
+.dark .text-\[\#8A5300\] {
+  color: #F7B86E !important;
+}
+
+.dark .bg-\[\#FDF2F0\] {
+  background-color: #2B1B1A !important;
+}
+
+.dark .border-\[\#F8D7DA\] {
+  border-color: #4D2624 !important;
+}
+
+.dark .bg-\[\#EFF6FF\] {
+  background-color: #172436 !important;
+}
+
+.dark .border-\[\#BFDBFE\] {
+  border-color: #243B5A !important;
+}
+
+.dark .text-\[\#1E40AF\] {
+  color: #93C5FD !important;
+}
+
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: #181C19 !important;
+  color: #EDEBE6 !important;
+  border-color: #2D3530 !important;
+}
+
+.dark input:focus,
+.dark select:focus,
+.dark textarea:focus {
+  border-color: #4E7663 !important;
+}
+
+/* Custom subtle scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -71,4 +233,11 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #B8B2A4;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #343E38;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #47544C;
 }

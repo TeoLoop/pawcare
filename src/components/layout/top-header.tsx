@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { formatInMontevideo } from '@/lib/date-utils';
 import { MessageSquare } from 'lucide-react';
 import { KiraRepository } from '@/lib/storage/repository';
+import { ThemeToggle } from '@/components/theme/theme-toggle';
 
 export function TopHeader() {
   const [currentDateStr, setCurrentDateStr] = useState('');
@@ -34,8 +35,8 @@ export function TopHeader() {
           <p className="text-xs text-[#606763] capitalize">{currentDateStr || 'Hoy'}</p>
         </div>
 
-        {/* Status Indicators */}
-        <div className="flex items-center gap-3">
+        {/* Status Indicators & Theme Toggle */}
+        <div className="flex items-center gap-2.5">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#FAF8F5] border border-[#E5E1D6] text-xs">
             <MessageSquare className="w-3.5 h-3.5 text-[#3E5A4D]" />
             <span className="hidden sm:inline text-[#606763]">Recordatorios WhatsApp:</span>
@@ -49,6 +50,8 @@ export function TopHeader() {
               {remindersEnabled ? (phone ? 'Activos' : 'Falta número') : 'Pausados'}
             </span>
           </div>
+
+          <ThemeToggle />
         </div>
       </div>
     </header>
