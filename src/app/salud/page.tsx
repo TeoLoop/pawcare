@@ -45,7 +45,7 @@ export default function SaludPage() {
 
   const handleDownloadPdf = () => {
     const doc = generateVeterinarySummaryPdf();
-    doc.save(`Kira-Care-Resumen-Salud-${new Date().toISOString().split('T')[0]}.pdf`);
+    doc.save(`PawCare-Resumen-Salud-${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   const handleDeleteVetVisit = (id: string) => {
