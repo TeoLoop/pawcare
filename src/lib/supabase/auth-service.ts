@@ -38,24 +38,35 @@ export class SupabaseAuthService {
     }
   }
 
-  static async signUpWithEmail(email: string, password: string,fullName?: string): Promise<{ user: User | null; error: string | null }> {
+  static async signUpWithEmail(
+    email: string,
+    password: string,
+    fullName?: string
+  ): Promise<{ user: User | null; error: string | null }> {
     if (!isLiveSupabaseConfigured()) {
       return { user: null, error: 'Supabase no está configurado en las variables de entorno.' };
     }
-    const { data, error } = await this.supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName || 'Tutor',
-        },
-      },
-    });
 
-    if (error) {
-      return { user: null, error: error.message };
+    try {
+      // Call server endpoint to create pre-confirmed user (bypasses Supabase SMTP rate limits)
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, fullName }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        return { user: null, error: json.error || 'Error al crear la cuenta.' };
+      }
+
+      // Immediately sign in with the new confirmed credentials
+      const signInRes = await this.signInWithEmail(email, password);
+      return signInRes;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error al registrar usuario.';
+      return { user: null, error: msg };
     }
-    return { user: data.user, error: null };
   }
 
   static async signInWithEmail(email: string, password: string): Promise<{ user: User | null; error: string | null }> {

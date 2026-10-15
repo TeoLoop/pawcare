@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { formatInMontevideo } from '@/lib/date-utils';
-import { MessageSquare, Cloud } from 'lucide-react';
+import { MessageSquare, User } from 'lucide-react';
 import { KiraRepository } from '@/lib/storage/repository';
 import { ThemeToggle } from '@/components/theme/theme-toggle';
 import { PetSwitcher } from '@/components/pet/pet-switcher';
@@ -55,33 +55,26 @@ export function TopHeader() {
         {/* Status Indicators & Theme Toggle */}
         <div className="flex items-center gap-2.5">
           {/* Supabase Cloud Connection Status */}
-          <button
-            type="button"
-            onClick={() => setIsAuthModalOpen(true)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
-              syncStatus.isConfigured && syncStatus.isAuthenticated
-                ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100'
-                : syncStatus.isConfigured
-                ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800 hover:bg-amber-100'
-                : 'bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 border-stone-200 dark:border-stone-700 hover:bg-stone-200'
-            }`}
-            title={
-              syncStatus.isConfigured && syncStatus.isAuthenticated
-                ? `Conectado a Supabase (${syncStatus.userEmail})`
-                : syncStatus.isConfigured
-                ? 'Supabase configurado: hacer clic para iniciar sesión'
-                : 'Modo local: hacer clic para conectar Supabase'
-            }
-          >
-            <Cloud className="w-3.5 h-3.5 shrink-0" />
-            <span className="hidden sm:inline">
-              {syncStatus.isConfigured
-                ? syncStatus.isAuthenticated
-                  ? 'Supabase Conectado'
-                  : 'Entrar a Supabase'
-                : 'Nube'}
-            </span>
-          </button>
+          {syncStatus.isAuthenticated ? (
+            <button
+              type="button"
+              onClick={() => setIsAuthModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition-colors"
+              title={`Conectado a Supabase (${syncStatus.userEmail})`}
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="truncate max-w-[120px]">{syncStatus.userEmail?.split('@')[0]}</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsAuthModalOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-[#3E5A4D] hover:bg-[#32493E] text-white shadow-xs transition-colors"
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>Iniciar Sesión / Crear Cuenta</span>
+            </button>
+          )}
 
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#FAF8F5] dark:bg-stone-800/60 border border-[#E5E1D6] dark:border-stone-700 text-xs">
             <MessageSquare className="w-3.5 h-3.5 text-[#3E5A4D] dark:text-sage-400" />

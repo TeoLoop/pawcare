@@ -19,7 +19,10 @@ import {
   Plus,
   Send,
   CheckCircle2,
+  Cloud,
 } from 'lucide-react';
+import { AuthModal } from '@/components/auth/auth-modal';
+import { CloudSyncService } from '@/lib/supabase/sync-service';
 
 export default function HomePage() {
   const [pet, setPet] = useState<Pet | null>(null);
@@ -30,6 +33,8 @@ export default function HomePage() {
   const [isSymptomModalOpen, setIsSymptomModalOpen] = useState(false);
   const [isTriggeringReminder, setIsTriggeringReminder] = useState(false);
   const [reminderNotification, setReminderNotification] = useState<string | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const refreshData = () => {
     const p = KiraRepository.getPet();
@@ -50,16 +55,31 @@ export default function HomePage() {
       (v) => v.next_appointment_at && new Date(v.next_appointment_at) > new Date()
     );
     setNextVetVisit(upcoming || null);
+
+    const status = CloudSyncService.getStatus();
+    setIsAuthenticated(status.isAuthenticated);
   };
 
   useEffect(() => {
     refreshData();
 
+    CloudSyncService.init().then(() => {
+      refreshData();
+    });
+
     const handlePetChange = () => {
       refreshData();
     };
+    const handleSynced = () => {
+      refreshData();
+    };
+
     window.addEventListener('pawcare_pet_changed', handlePetChange);
-    return () => window.removeEventListener('pawcare_pet_changed', handlePetChange);
+    window.addEventListener('pawcare_synced', handleSynced);
+    return () => {
+      window.removeEventListener('pawcare_pet_changed', handlePetChange);
+      window.removeEventListener('pawcare_synced', handleSynced);
+    };
   }, []);
 
   // Stats calculation
@@ -97,6 +117,34 @@ export default function HomePage() {
 
   return (
     <div className="space-y-6">
+      {/* Cloud Authentication Banner if not logged in */}
+      {!isAuthenticated && (
+        <div className="p-4 rounded-3xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 dark:from-stone-900 dark:via-stone-900 dark:to-stone-850 border border-emerald-200 dark:border-stone-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs animate-in fade-in">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-2xl bg-white dark:bg-stone-800 border border-emerald-200 dark:border-stone-700 flex items-center justify-center text-[#3E5A4D] dark:text-emerald-400 shrink-0 shadow-xs">
+              <Cloud className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-[#222624] dark:text-stone-100">
+                Conectá tu cuenta de PawCare
+              </h2>
+              <p className="text-xs text-[#606763] dark:text-stone-400 mt-0.5">
+                Iniciá sesión o creá tu cuenta para sincronizar tus mascotas y dosis en la nube en tiempo real.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setIsAuthModalOpen(true)}
+              className="px-4 py-2 bg-[#3E5A4D] hover:bg-[#32493E] text-white rounded-xl text-xs font-bold transition-all shadow-xs"
+            >
+              Iniciar Sesión / Crear Cuenta
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 1. Pet Hero Card */}
       <div className="bg-white rounded-3xl border border-[#E5E1D6] p-6 shadow-xs relative overflow-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -310,6 +358,13 @@ export default function HomePage() {
         isOpen={isSymptomModalOpen}
         onClose={() => setIsSymptomModalOpen(false)}
         onSuccess={refreshData}
+      />
+
+      {/* Supabase Cloud Auth Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSuccess={() => refreshData()}
       />
     </div>
   );
