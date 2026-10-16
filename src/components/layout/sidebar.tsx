@@ -123,7 +123,7 @@ export function Sidebar() {
               <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
               <div className="truncate">
                 <p className="text-xs font-bold text-emerald-950 dark:text-emerald-200 truncate">
-                  {syncStatus.userEmail?.split('@')[0]}
+                  {syncStatus.userName || syncStatus.userEmail?.split('@')[0]}
                 </p>
                 <p className="text-[10px] text-emerald-700 dark:text-emerald-400">Nube conectada</p>
               </div>

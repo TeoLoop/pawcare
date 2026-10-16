@@ -109,11 +109,11 @@ export function TopHeader() {
                 type="button"
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                 className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full border text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors shadow-2xs"
-                title={`Conectado a Supabase (${syncStatus.userEmail})`}
+                title={`Conectado a Supabase (${syncStatus.userName ? `${syncStatus.userName} - ${syncStatus.userEmail}` : syncStatus.userEmail})`}
                 aria-expanded={isUserMenuOpen}
               >
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                <span className="truncate max-w-[80px] sm:max-w-[120px]">{syncStatus.userEmail?.split('@')[0]}</span>
+                <span className="truncate max-w-[80px] sm:max-w-[120px]">{syncStatus.userName || syncStatus.userEmail?.split('@')[0]}</span>
                 <ChevronDown className={`w-3 h-3 text-emerald-700 dark:text-emerald-400 transition-transform shrink-0 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
               </button>
 
@@ -122,12 +122,17 @@ export function TopHeader() {
                   {/* User Profile Header */}
                   <div className="flex items-center gap-3 p-2.5 bg-[#FAF8F5] dark:bg-stone-800/60 rounded-xl border border-[#E5E1D6] dark:border-stone-700/60 mb-2">
                     <div className="w-9 h-9 rounded-full bg-[#3E5A4D] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
-                      {syncStatus.userEmail ? syncStatus.userEmail.charAt(0).toUpperCase() : 'U'}
+                      {(syncStatus.userName || syncStatus.userEmail || 'U').charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-bold text-[#222624] dark:text-stone-100 truncate">
-                        {syncStatus.userEmail}
+                        {syncStatus.userName || syncStatus.userEmail}
                       </p>
+                      {syncStatus.userName && syncStatus.userEmail && (
+                        <p className="text-[10px] text-[#606763] dark:text-stone-400 truncate">
+                          {syncStatus.userEmail}
+                        </p>
+                      )}
                       <p className="text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1 mt-0.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                         Supabase conectado

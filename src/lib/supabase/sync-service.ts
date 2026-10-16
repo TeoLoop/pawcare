@@ -1,5 +1,5 @@
 // src/lib/supabase/sync-service.ts
-import { isLiveSupabaseConfigured } from './client';
+import { createClient, isLiveSupabaseConfigured } from './client';
 import { SupabaseCloudRepository } from './cloud-repository';
 import { SupabaseAuthService } from './auth-service';
 import { KiraRepository } from '@/lib/storage/repository';
@@ -8,6 +8,7 @@ export interface SyncStatus {
   isConfigured: boolean;
   isAuthenticated: boolean;
   userEmail: string | null;
+  userName: string | null;
   lastSyncedAt: string | null;
   syncing: boolean;
   error: string | null;
@@ -17,6 +18,7 @@ const syncStatusState: SyncStatus = {
   isConfigured: false,
   isAuthenticated: false,
   userEmail: null,
+  userName: null,
   lastSyncedAt: null,
   syncing: false,
   error: null,
@@ -33,6 +35,20 @@ export class CloudSyncService {
       ...syncStatusState,
       isConfigured: configured,
     };
+  }
+
+  private static async resolveUserName(user: { id: string; user_metadata?: Record<string, unknown> }): Promise<string | null> {
+    let alias = (user.user_metadata?.username as string) || (user.user_metadata?.full_name as string) || null;
+    try {
+      const supabase = createClient();
+      const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle();
+      if (profile?.full_name?.trim()) {
+        alias = profile.full_name.trim();
+      }
+    } catch {
+      // fallback to metadata
+    }
+    return alias;
   }
 
   /**
@@ -56,10 +72,12 @@ export class CloudSyncService {
         if (user) {
           syncStatusState.isAuthenticated = true;
           syncStatusState.userEmail = user.email || 'Usuario';
+          syncStatusState.userName = await this.resolveUserName(user);
           await this.syncFromCloud();
         } else {
           syncStatusState.isAuthenticated = false;
           syncStatusState.userEmail = null;
+          syncStatusState.userName = null;
         }
       } catch (err: unknown) {
         console.warn('[CloudSync] Init error:', err);
@@ -96,11 +114,13 @@ export class CloudSyncService {
         if (!user) {
           syncStatusState.syncing = false;
           syncStatusState.isAuthenticated = false;
+          syncStatusState.userName = null;
           return { success: false, error: 'Iniciá sesión en Supabase para sincronizar con la nube.' };
         }
 
       syncStatusState.isAuthenticated = true;
       syncStatusState.userEmail = user.email || 'Usuario';
+      syncStatusState.userName = await this.resolveUserName(user);
 
       // 1. Fetch pets from cloud
       const cloudPets = await SupabaseCloudRepository.getPets();

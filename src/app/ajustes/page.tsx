@@ -444,7 +444,9 @@ export default function AjustesPage() {
             <div className="flex items-center gap-2 mt-1">
               <UserIcon className="w-3.5 h-3.5 text-[#3E5A4D] dark:text-emerald-400" />
               <span className="text-xs font-bold text-[#222624] dark:text-stone-100 truncate">
-                {syncStatus.isAuthenticated ? syncStatus.userEmail : 'Sesión no iniciada'}
+                {syncStatus.isAuthenticated
+                  ? (syncStatus.userName ? `${syncStatus.userName} (${syncStatus.userEmail})` : syncStatus.userEmail)
+                  : 'Sesión no iniciada'}
               </span>
             </div>
           </div>
