@@ -6,7 +6,7 @@ import {
   ScheduledDose,
   DoseLog,
 } from '@/types/medication';
-import { SymptomLog } from '@/types/health';
+import { SymptomLog, WeightLog } from '@/types/health';
 import { VetVisit, MedicalDocument } from '@/types/veterinary';
 import { UserSettings } from '@/types/settings';
 import { NotificationJob, NotificationAttempt } from '@/types/whatsapp';
@@ -37,6 +37,7 @@ const STORAGE_KEYS = {
   DOSES: 'pawcare_scheduled_doses',
   DOSE_LOGS: 'pawcare_dose_logs',
   SYMPTOMS: 'pawcare_symptoms',
+  WEIGHT_LOGS: 'pawcare_weight_logs',
   INVENTORY_EVENTS: 'pawcare_inventory_events',
   VET_VISITS: 'pawcare_vet_visits',
   DOCUMENTS: 'pawcare_documents',
@@ -53,6 +54,7 @@ class AppState {
   scheduledDoses: ScheduledDose[] = buildInitialScheduledDoses();
   doseLogs: DoseLog[] = [];
   symptoms: SymptomLog[] = [...INITIAL_SYMPTOMS];
+  weightLogs: WeightLog[] = [];
   inventoryEvents: InventoryEvent[] = [];
   vetVisits: VetVisit[] = [...INITIAL_VET_VISITS];
   documents: MedicalDocument[] = [...INITIAL_DOCUMENTS];
@@ -106,11 +108,49 @@ export class KiraRepository {
       memoryState.scheduledDoses = loadFromStorage(STORAGE_KEYS.DOSES, memoryState.scheduledDoses);
       memoryState.doseLogs = loadFromStorage(STORAGE_KEYS.DOSE_LOGS, memoryState.doseLogs);
       memoryState.symptoms = loadFromStorage(STORAGE_KEYS.SYMPTOMS, memoryState.symptoms);
+      memoryState.weightLogs = loadFromStorage(STORAGE_KEYS.WEIGHT_LOGS, memoryState.weightLogs);
       memoryState.inventoryEvents = loadFromStorage(STORAGE_KEYS.INVENTORY_EVENTS, memoryState.inventoryEvents);
       memoryState.vetVisits = loadFromStorage(STORAGE_KEYS.VET_VISITS, memoryState.vetVisits);
       memoryState.documents = loadFromStorage(STORAGE_KEYS.DOCUMENTS, memoryState.documents);
       memoryState.notifications = loadFromStorage(STORAGE_KEYS.NOTIFICATIONS, memoryState.notifications);
       memoryState.notificationAttempts = loadFromStorage(STORAGE_KEYS.NOTIFICATION_ATTEMPTS, memoryState.notificationAttempts);
+
+      // Auto-initialize initial weight log from pet's current weight if empty
+      if (memoryState.weightLogs.length === 0 && memoryState.pets.length > 0) {
+        for (const p of memoryState.pets) {
+          if (p.weight_kg) {
+            memoryState.weightLogs.push({
+              id: crypto.randomUUID(),
+              pet_id: p.id,
+              weight_kg: Number(p.weight_kg),
+              logged_date: getLocalDateString(),
+              notes: 'Peso inicial registrado',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            });
+          }
+        }
+        saveToStorage(STORAGE_KEYS.WEIGHT_LOGS, memoryState.weightLogs);
+      }
+
+      // Sanitize scheduled doses against active medication schedules (removes doses before start_date or after end_date)
+      const prevDosesCount = memoryState.scheduledDoses.length;
+      memoryState.scheduledDoses = memoryState.scheduledDoses.filter((d) => {
+        if (d.status === 'scheduled') {
+          const med = memoryState.medications.find((m) => m.id === d.medication_id);
+          if (med?.schedule?.start_date && d.scheduled_date < med.schedule.start_date) {
+            return false;
+          }
+          if (med?.schedule?.end_date && d.scheduled_date > med.schedule.end_date) {
+            return false;
+          }
+        }
+        return true;
+      });
+      if (memoryState.scheduledDoses.length !== prevDosesCount) {
+        saveToStorage(STORAGE_KEYS.DOSES, memoryState.scheduledDoses);
+      }
+
       memoryState.initialized = true;
     }
   }
@@ -342,6 +382,20 @@ export class KiraRepository {
       memoryState.medications.push(med);
     }
 
+    // Prune unadministered scheduled doses that fall outside [start_date, end_date]
+    if (med.schedule) {
+      const startDate = med.schedule.start_date;
+      const endDate = med.schedule.end_date;
+      memoryState.scheduledDoses = memoryState.scheduledDoses.filter((d) => {
+        if (d.medication_id === med.id && d.status === 'scheduled') {
+          if (startDate && d.scheduled_date < startDate) return false;
+          if (endDate && d.scheduled_date > endDate) return false;
+        }
+        return true;
+      });
+      saveToStorage(STORAGE_KEYS.DOSES, memoryState.scheduledDoses);
+    }
+
     // Generate upcoming doses for active schedule without overwriting already administered/skipped doses
     if (med.is_active && med.schedule && med.schedule.is_active) {
       this.generateUpcomingDosesForMedication(med);
@@ -468,7 +522,20 @@ export class KiraRepository {
     const targetPetId = petId || memoryState.activePetId;
     
     const filtered = memoryState.scheduledDoses
-      .filter((d) => (targetDate === 'all' || d.scheduled_date === targetDate) && (targetPetId === 'all' || d.pet_id === targetPetId));
+      .filter((d) => {
+        if (targetDate !== 'all' && d.scheduled_date !== targetDate) return false;
+        if (targetPetId !== 'all' && d.pet_id !== targetPetId) return false;
+        if (d.status === 'scheduled') {
+          const med = memoryState.medications.find((m) => m.id === d.medication_id);
+          if (med?.schedule?.start_date && d.scheduled_date < med.schedule.start_date) {
+            return false;
+          }
+          if (med?.schedule?.end_date && d.scheduled_date > med.schedule.end_date) {
+            return false;
+          }
+        }
+        return true;
+      });
 
     // Deduplicate by medication_id + scheduled_date + scheduled_time, prioritizing 'administered' or 'skipped'
     const uniqueMap = new Map<string, ScheduledDose>();
@@ -877,6 +944,89 @@ export class KiraRepository {
     saveToStorage(STORAGE_KEYS.DOCUMENTS, memoryState.documents);
   }
 
+  // --- WEIGHT LOGS & CONTROL ---
+  static getWeightLogs(petId?: string): WeightLog[] {
+    this.init();
+    const targetPetId = petId || memoryState.activePetId;
+    const list = targetPetId === 'all'
+      ? memoryState.weightLogs
+      : memoryState.weightLogs.filter((w) => w.pet_id === targetPetId);
+    return [...list].sort((a, b) => {
+      const dateCmp = b.logged_date.localeCompare(a.logged_date);
+      if (dateCmp !== 0) return dateCmp;
+      return b.created_at.localeCompare(a.created_at);
+    });
+  }
+
+  static addWeightLog(
+    data: { pet_id?: string; weight_kg: number; logged_date?: string; notes?: string }
+  ): WeightLog {
+    this.init();
+    const now = new Date().toISOString();
+    const assignedPetId = data.pet_id || memoryState.activePetId;
+    const log: WeightLog = {
+      id: crypto.randomUUID(),
+      pet_id: assignedPetId,
+      weight_kg: Number(Number(data.weight_kg).toFixed(2)),
+      logged_date: data.logged_date || getLocalDateString(),
+      notes: data.notes?.trim() || undefined,
+      created_at: now,
+      updated_at: now,
+    };
+    memoryState.weightLogs.unshift(log);
+    saveToStorage(STORAGE_KEYS.WEIGHT_LOGS, memoryState.weightLogs);
+
+    // Update pet's current weight_kg
+    const pet = memoryState.pets.find((p) => p.id === assignedPetId);
+    if (pet) {
+      pet.weight_kg = log.weight_kg;
+      pet.updated_at = now;
+      saveToStorage(STORAGE_KEYS.PETS, memoryState.pets);
+      if (isClient() && isLiveSupabaseConfigured()) {
+        SupabaseCloudRepository.updatePet(assignedPetId, { weight_kg: log.weight_kg }).catch((err) =>
+          console.warn('[CloudSync] updatePet weight_kg error:', err)
+        );
+      }
+      if (isClient()) {
+        window.dispatchEvent(new CustomEvent('pawcare_pet_changed', { detail: { petId: assignedPetId } }));
+      }
+    }
+
+    return log;
+  }
+
+  static deleteWeightLog(id: string): void {
+    this.init();
+    const targetLog = memoryState.weightLogs.find((w) => w.id === id);
+    if (!targetLog) return;
+    const petId = targetLog.pet_id;
+    memoryState.weightLogs = memoryState.weightLogs.filter((w) => w.id !== id);
+    saveToStorage(STORAGE_KEYS.WEIGHT_LOGS, memoryState.weightLogs);
+
+    // Recalculate pet's current weight from remaining logs for this pet
+    const remaining = memoryState.weightLogs
+      .filter((w) => w.pet_id === petId)
+      .sort((a, b) => {
+        const dateCmp = b.logged_date.localeCompare(a.logged_date);
+        if (dateCmp !== 0) return dateCmp;
+        return b.created_at.localeCompare(a.created_at);
+      });
+    const pet = memoryState.pets.find((p) => p.id === petId);
+    if (pet) {
+      pet.weight_kg = remaining[0]?.weight_kg ?? undefined;
+      pet.updated_at = new Date().toISOString();
+      saveToStorage(STORAGE_KEYS.PETS, memoryState.pets);
+      if (isClient() && isLiveSupabaseConfigured()) {
+        SupabaseCloudRepository.updatePet(petId, { weight_kg: pet.weight_kg }).catch((err) =>
+          console.warn('[CloudSync] updatePet weight_kg error:', err)
+        );
+      }
+      if (isClient()) {
+        window.dispatchEvent(new CustomEvent('pawcare_pet_changed', { detail: { petId } }));
+      }
+    }
+  }
+
   // --- NOTIFICATIONS & AUDIT ---
   static getNotificationJobs(): NotificationJob[] {
     this.init();
@@ -944,6 +1094,15 @@ export class KiraRepository {
     // Deduplicate doses by medication_id + scheduled_date + scheduled_time, prioritizing 'administered'
     const doseMap = new Map<string, ScheduledDose>();
     for (const d of doses || []) {
+      if (d.status === 'scheduled') {
+        const med = memoryState.medications.find((m) => m.id === d.medication_id);
+        if (med?.schedule?.start_date && d.scheduled_date < med.schedule.start_date) {
+          continue;
+        }
+        if (med?.schedule?.end_date && d.scheduled_date > med.schedule.end_date) {
+          continue;
+        }
+      }
       const key = `${d.medication_id}_${d.scheduled_date}_${d.scheduled_time}`;
       const existing = doseMap.get(key);
       if (!existing || (d.status === 'administered' && existing.status !== 'administered')) {

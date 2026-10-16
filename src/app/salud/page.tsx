@@ -1,15 +1,17 @@
 // src/app/salud/page.tsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { KiraRepository } from '@/lib/storage/repository';
-import { SymptomLog } from '@/types/health';
+import { SymptomLog, WeightLog } from '@/types/health';
 import { VetVisit, MedicalDocument } from '@/types/veterinary';
+import { Pet } from '@/types/medication';
 import { SymptomFormModal } from '@/components/health/symptom-form-modal';
 import { VetVisitModal } from '@/components/veterinary/vet-visit-modal';
 import { DocumentModal } from '@/components/veterinary/document-modal';
+import { WeightModal } from '@/components/health/weight-modal';
 import { generateVeterinarySummaryPdf } from '@/lib/pdf/export-summary';
-import { formatInMontevideo } from '@/lib/date-utils';
+import { formatInMontevideo, getLocalDateString } from '@/lib/date-utils';
 import {
   Activity,
   FileText,
@@ -18,26 +20,55 @@ import {
   AlertTriangle,
   Stethoscope,
   Trash2,
+  Scale,
+  Calendar,
+  ExternalLink,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  X,
+  Camera,
 } from 'lucide-react';
 
 export default function SaludPage() {
   const [symptoms, setSymptoms] = useState<SymptomLog[]>([]);
   const [vetVisits, setVetVisits] = useState<VetVisit[]>([]);
   const [documents, setDocuments] = useState<MedicalDocument[]>([]);
+  const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
+  const [activePet, setActivePet] = useState<Pet | null>(null);
+
   const [isSymptomModalOpen, setIsSymptomModalOpen] = useState(false);
   const [isVetVisitModalOpen, setIsVetVisitModalOpen] = useState(false);
   const [isDocModalOpen, setIsDocModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'symptoms' | 'vet' | 'documents'>('symptoms');
+  const [isWeightModalOpen, setIsWeightModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'symptoms' | 'vet' | 'documents' | 'weight'>('symptoms');
+  const [previewImage, setPreviewImage] = useState<{ url: string; title: string } | null>(null);
 
   const loadData = () => {
     setSymptoms(KiraRepository.getSymptomLogs());
     setVetVisits(KiraRepository.getVetVisits());
     setDocuments(KiraRepository.getDocuments());
+    setWeightLogs(KiraRepository.getWeightLogs());
+    setActivePet(KiraRepository.getActivePet());
   };
 
   const handleDeleteDocument = (id: string, title: string) => {
     if (confirm(`¿Estás seguro de eliminar el documento "${title}"?`)) {
       KiraRepository.deleteDocument(id);
+      loadData();
+    }
+  };
+
+  const handleDeleteVetVisit = (id: string) => {
+    if (confirm('¿Eliminar este registro de consulta veterinaria?')) {
+      KiraRepository.deleteVetVisit(id);
+      loadData();
+    }
+  };
+
+  const handleDeleteWeightLog = (id: string) => {
+    if (confirm('¿Eliminar este registro de peso?')) {
+      KiraRepository.deleteWeightLog(id);
       loadData();
     }
   };
@@ -66,12 +97,58 @@ export default function SaludPage() {
     doc.save(`PawCare-Resumen-Salud-${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
-  const handleDeleteVetVisit = (id: string) => {
-    if (confirm('¿Eliminar este registro de consulta veterinaria?')) {
-      KiraRepository.deleteVetVisit(id);
-      loadData();
+  // Group documents by date
+  const groupedDocuments = useMemo(() => {
+    const map = new Map<string, MedicalDocument[]>();
+    for (const doc of documents) {
+      const dateKey = doc.document_date || 'Sin fecha';
+      if (!map.has(dateKey)) {
+        map.set(dateKey, []);
+      }
+      map.get(dateKey)!.push(doc);
+    }
+    return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [documents]);
+
+  const formatGroupDate = (dateStr: string) => {
+    if (dateStr === 'Sin fecha') return 'Sin fecha registrada';
+    const todayStr = getLocalDateString();
+    if (dateStr === todayStr) {
+      return `Hoy, ${formatInMontevideo(dateStr, "d 'de' MMMM yyyy")}`;
+    }
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = getLocalDateString(yesterday);
+    if (dateStr === yesterdayStr) {
+      return `Ayer, ${formatInMontevideo(dateStr, "d 'de' MMMM yyyy")}`;
+    }
+    return formatInMontevideo(dateStr, "EEEE d 'de' MMMM yyyy");
+  };
+
+  const getDocTypeLabel = (type: string) => {
+    switch (type) {
+      case 'prescription': return 'Receta médica';
+      case 'lab_result': return 'Resultado de laboratorio';
+      case 'xray': return 'Foto clínica / Estudios / Imágenes';
+      case 'discharge_summary': return 'Alta médica / Epicrisis';
+      default: return 'Otro documento / Foto';
     }
   };
+
+  // Weight Trend calculation
+  const weightDiff = useMemo(() => {
+    if (weightLogs.length >= 2) {
+      return Number((weightLogs[0].weight_kg - weightLogs[1].weight_kg).toFixed(2));
+    }
+    return 0;
+  }, [weightLogs]);
+
+  const weightDiffString = useMemo(() => {
+    if (weightLogs.length < 2) return 'Primer registro';
+    if (weightDiff > 0) return `+${weightDiff} kg`;
+    if (weightDiff < 0) return `${weightDiff} kg`;
+    return 'Estable (0.0 kg)';
+  }, [weightLogs, weightDiff]);
 
   return (
     <div className="space-y-6">
@@ -82,7 +159,7 @@ export default function SaludPage() {
             Salud & Veterinaria
           </h1>
           <p className="text-xs text-[#606763] dark:text-stone-400 mt-0.5">
-            Diario de bienestar en el hogar, consultas veterinarias y documentación clínica
+            Diario de bienestar en el hogar, control de peso, consultas veterinarias y documentación clínica
           </p>
         </div>
 
@@ -148,7 +225,20 @@ export default function SaludPage() {
             }`}
           >
             <FileText className="w-3.5 h-3.5" />
-            <span>Documentos ({documents.length})</span>
+            <span>Documentos y Fotos ({documents.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('weight')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap shrink-0 ${
+              activeTab === 'weight'
+                ? 'bg-[#E9EFEA] text-[#274033] dark:bg-emerald-950/60 dark:text-emerald-300 shadow-2xs'
+                : 'text-[#606763] dark:text-stone-400 hover:text-[#222624] dark:hover:text-stone-200'
+            }`}
+          >
+            <Scale className="w-3.5 h-3.5" />
+            <span>Control de Peso ({weightLogs.length})</span>
           </button>
         </div>
 
@@ -181,7 +271,18 @@ export default function SaludPage() {
             className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#3E5A4D] hover:bg-[#32493E] text-white text-xs font-semibold shadow-xs shrink-0"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Subir Documento (PDF / Word)</span>
+            <span>Subir Documento o Foto</span>
+          </button>
+        )}
+
+        {activeTab === 'weight' && (
+          <button
+            type="button"
+            onClick={() => setIsWeightModalOpen(true)}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#3E5A4D] hover:bg-[#32493E] text-white text-xs font-semibold shadow-xs shrink-0"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Registrar Peso</span>
           </button>
         )}
       </div>
@@ -253,26 +354,20 @@ export default function SaludPage() {
                     <div>
                       <span className="font-semibold text-[#222624] dark:text-stone-200">Ánimo:</span>{' '}
                       {sym.behavior === 'calm'
-                        ? 'Tranquila'
+                        ? 'Tranquilo'
                         : sym.behavior === 'playful'
-                        ? 'Juguetona'
+                        ? 'Juguetón'
                         : sym.behavior === 'lethargic'
-                        ? 'Letárgica'
+                        ? 'Letárgico'
                         : sym.behavior === 'anxious'
-                        ? 'Ansiosa'
-                        : 'Inquieta'}
+                        ? 'Ansioso'
+                        : 'Inquieto'}
                     </div>
                   </div>
 
-                  {sym.paw_support && (
-                    <p className="text-xs text-[#222624] dark:text-stone-200">
-                      <strong>Apoyo de patas:</strong> {sym.paw_support}
-                    </p>
-                  )}
-
                   {sym.notes && (
-                    <p className="text-xs text-[#606763] dark:text-stone-400 italic bg-[#FAF8F5] dark:bg-stone-800/50 p-2.5 rounded-xl border border-[#EFECE5] dark:border-stone-700/70">
-                      &ldquo;{sym.notes}&rdquo;
+                    <p className="text-xs text-[#222624] dark:text-stone-300 bg-[#FAF8F5] dark:bg-stone-800 p-2.5 rounded-xl border border-[#EFECE5] dark:border-stone-700 italic">
+                      &quot;{sym.notes}&quot;
                     </p>
                   )}
                 </div>
@@ -288,13 +383,15 @@ export default function SaludPage() {
           {vetVisits.length === 0 ? (
             <div className="bg-white dark:bg-stone-900 rounded-2xl sm:rounded-3xl border border-[#E5E1D6] dark:border-stone-800 p-8 sm:p-12 text-center shadow-xs">
               <Stethoscope className="w-8 h-8 text-[#8E9490] dark:text-stone-500 mx-auto mb-2" />
-              <p className="text-sm font-semibold text-[#222624] dark:text-stone-100">Sin consultas registradas</p>
+              <p className="text-sm font-semibold text-[#222624] dark:text-stone-100">
+                Sin consultas veterinarias registradas
+              </p>
               <p className="text-xs text-[#606763] dark:text-stone-400 mt-1 max-w-sm mx-auto">
-                Anotá las visitas a la clínica, diagnósticos profesionales y fechas de control.
+                Registrá visitas clínicas, diagnósticos, recomendaciones profesionales y próximas citas.
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {vetVisits.map((visit) => (
                 <div
                   key={visit.id}
@@ -303,49 +400,61 @@ export default function SaludPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-bold text-[#222624] dark:text-stone-100">{visit.reason}</h3>
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-[#E9EFEA] text-[#274033] dark:bg-emerald-950/50 dark:text-emerald-300">
+                        <span className="text-xs font-bold text-[#3E5A4D] dark:text-emerald-400 bg-[#E9EFEA] dark:bg-emerald-950/60 px-2.5 py-0.5 rounded-md">
                           {formatInMontevideo(visit.visit_date, 'dd/MM/yyyy')}
                         </span>
+                        {visit.clinic_name && (
+                          <span className="text-xs font-semibold text-[#606763] dark:text-stone-300">
+                            {visit.clinic_name}
+                          </span>
+                        )}
+                        {visit.veterinarian_name && (
+                          <span className="text-xs text-[#8E9490] dark:text-stone-400">
+                            • Dr/a. {visit.veterinarian_name}
+                          </span>
+                        )}
                       </div>
-                      <p className="text-xs text-[#606763] dark:text-stone-400 mt-0.5">
-                        {visit.clinic_name || 'Clínica Veterinaria'} • {visit.veterinarian_name || 'Veterinario'}
-                      </p>
+                      <h4 className="text-sm font-bold text-[#222624] dark:text-stone-100 mt-1.5">
+                        {visit.reason}
+                      </h4>
                     </div>
 
                     <button
                       type="button"
                       onClick={() => handleDeleteVetVisit(visit.id)}
-                      className="p-1.5 text-[#C34A3E] dark:text-rose-400 hover:bg-[#FDF2F0] dark:hover:bg-rose-950/40 rounded-lg transition-colors"
+                      className="p-1.5 rounded-lg text-[#C34A3E] dark:text-rose-400 hover:bg-[#FDF2F0] dark:hover:bg-rose-950/40 transition-colors shrink-0"
+                      title="Eliminar consulta"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
 
                   {visit.diagnosis && (
-                    <div className="p-3 rounded-xl bg-[#FAF8F5] dark:bg-stone-800/60 border border-[#EFECE5] dark:border-stone-700/80 text-xs">
-                      <span className="font-bold text-[#3E5A4D] dark:text-emerald-400">Diagnóstico profesional:</span>{' '}
-                      <span className="text-[#222624] dark:text-stone-200">{visit.diagnosis}</span>
+                    <div className="text-xs bg-[#FAF8F5] dark:bg-stone-800 p-3 rounded-xl border border-[#EFECE5] dark:border-stone-700">
+                      <span className="font-semibold text-[#222624] dark:text-stone-200">Diagnóstico: </span>
+                      <span className="text-[#606763] dark:text-stone-300">{visit.diagnosis}</span>
                     </div>
                   )}
 
                   {visit.professional_recommendations && (
-                    <div className="p-3 rounded-xl bg-white dark:bg-stone-850 border border-[#E5E1D6] dark:border-stone-700 text-xs text-[#606763] dark:text-stone-300">
-                      <strong className="text-[#222624] dark:text-stone-100">Recomendaciones clínicas:</strong>{' '}
-                      {visit.professional_recommendations}
+                    <div className="text-xs bg-[#FAF8F5] dark:bg-stone-800 p-3 rounded-xl border border-[#EFECE5] dark:border-stone-700">
+                      <span className="font-semibold text-[#222624] dark:text-stone-200">Indicaciones: </span>
+                      <span className="text-[#606763] dark:text-stone-300">{visit.professional_recommendations}</span>
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between text-xs text-[#606763] dark:text-stone-400 pt-2 border-t border-[#EFECE5] dark:border-stone-800">
-                    {visit.next_appointment_at ? (
-                      <span className="text-[#3E5A4D] dark:text-emerald-400 font-medium">
-                        Próximo control: {formatInMontevideo(visit.next_appointment_at, 'dd/MM/yyyy HH:mm')} hs
+                  <div className="flex items-center justify-between text-xs text-[#606763] dark:text-stone-400 pt-1">
+                    {visit.next_appointment_at && (
+                      <span className="flex items-center gap-1.5 text-[#3E5A4D] dark:text-emerald-400 font-medium">
+                        <Calendar className="w-3.5 h-3.5" />
+                        Próxima cita: {formatInMontevideo(visit.next_appointment_at, 'dd/MM/yyyy HH:mm')} hs
                       </span>
-                    ) : (
-                      <span>Sin próxima fecha agendada</span>
                     )}
-
-                    {visit.cost && <span>Costo: ${visit.cost} UYU</span>}
+                    {visit.cost && (
+                      <span className="ml-auto font-semibold text-[#222624] dark:text-stone-200">
+                        Costo: ${visit.cost} UYU
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
@@ -354,19 +463,19 @@ export default function SaludPage() {
         </div>
       )}
 
-      {/* Tab 3: Medical Documents */}
+      {/* Tab 3: Medical Documents & Photos (Grouped by Date) */}
       {activeTab === 'documents' && (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {documents.length === 0 ? (
             <div className="bg-white dark:bg-stone-900 rounded-2xl sm:rounded-3xl border border-[#E5E1D6] dark:border-stone-800 p-8 sm:p-12 text-center shadow-xs">
               <div className="w-12 h-12 rounded-2xl bg-[#E9EFEA] dark:bg-emerald-950/40 text-[#3E5A4D] dark:text-emerald-400 flex items-center justify-center mx-auto mb-3">
                 <FileText className="w-6 h-6" />
               </div>
               <h3 className="text-base font-semibold text-[#222624] dark:text-stone-100">
-                Aún no hay documentos médicos guardados
+                Aún no hay documentos ni fotos guardadas
               </h3>
               <p className="text-xs text-[#606763] dark:text-stone-400 mt-1 max-w-sm mx-auto">
-                Subí recetas médicas, análisis clínicos, radiografías o informes en <strong>PDF o Word (DOCX)</strong> para tener todo el historial clínico en un solo lugar.
+                Subí recetas médicas, fotos de heridas o radiografías, análisis clínicos e informes en <strong>PDF, Word o imagen</strong> agrupados por fecha.
               </p>
               <button
                 type="button"
@@ -374,100 +483,306 @@ export default function SaludPage() {
                 className="inline-flex items-center gap-1.5 px-4 py-2 mt-4 rounded-xl bg-[#3E5A4D] hover:bg-[#32493E] text-white text-xs font-semibold shadow-xs transition-all"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Subir primer documento</span>
+                <span>Subir primera foto o documento</span>
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {documents.map((doc) => {
-                const ext = doc.file_name ? doc.file_name.split('.').pop()?.toLowerCase() || '' : '';
-                const isPdf = ext === 'pdf';
-                const isWord = ext === 'doc' || ext === 'docx';
-                const isImage = ['png', 'jpg', 'jpeg', 'webp'].includes(ext);
+            groupedDocuments.map(([dateKey, docsInDate]) => (
+              <div key={dateKey} className="space-y-3">
+                {/* Date Header */}
+                <div className="flex items-center gap-2 px-1">
+                  <Calendar className="w-4 h-4 text-[#3E5A4D] dark:text-emerald-400" />
+                  <h3 className="text-xs font-bold text-[#222624] dark:text-stone-200 capitalize tracking-wide">
+                    {formatGroupDate(dateKey)}
+                  </h3>
+                  <span className="text-[10px] font-semibold text-[#606763] dark:text-stone-400 px-2 py-0.5 rounded-full bg-[#FAF8F5] dark:bg-stone-800 border border-[#E5E1D6] dark:border-stone-750">
+                    {docsInDate.length} {docsInDate.length === 1 ? 'archivo' : 'archivos'}
+                  </span>
+                </div>
 
-                const getDocTypeLabel = (type: string) => {
-                  switch (type) {
-                    case 'prescription': return 'Receta médica';
-                    case 'lab_result': return 'Resultado de laboratorio';
-                    case 'xray': return 'Estudios / Imágenes';
-                    case 'discharge_summary': return 'Alta médica / Epicrisis';
-                    default: return 'Otro documento';
-                  }
-                };
+                {/* Grid of Documents / Photos */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {docsInDate.map((doc) => {
+                    const ext = doc.file_name ? doc.file_name.split('.').pop()?.toLowerCase() || '' : '';
+                    const isPdf = ext === 'pdf';
+                    const isWord = ext === 'doc' || ext === 'docx';
+                    const isImage = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'heic'].includes(ext) || doc.file_url.startsWith('data:image/');
 
-                return (
-                  <div
-                    key={doc.id}
-                    className="bg-white dark:bg-stone-900 rounded-2xl sm:rounded-3xl border border-[#E5E1D6] dark:border-stone-800 p-4 sm:p-5 shadow-xs flex flex-col justify-between gap-3 hover:border-[#3E5A4D]/40 transition-colors"
-                  >
-                    <div>
-                      <div className="flex items-start justify-between gap-3 mb-2.5">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div
-                            className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
-                              isPdf
-                                ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
-                                : isWord
-                                ? 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border border-sky-200 dark:border-sky-800'
-                                : isImage
-                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                                : 'bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-300'
-                            }`}
-                          >
-                            <span className="uppercase text-[10px] tracking-tight">{ext || 'DOC'}</span>
+                    return (
+                      <div
+                        key={doc.id}
+                        className="bg-white dark:bg-stone-900 rounded-2xl sm:rounded-3xl border border-[#E5E1D6] dark:border-stone-800 p-4 sm:p-5 shadow-xs flex flex-col justify-between gap-3 hover:border-[#3E5A4D]/40 transition-colors"
+                      >
+                        <div>
+                          {/* Image preview thumbnail if document is an image */}
+                          {isImage && (
+                            <div
+                              onClick={() => setPreviewImage({ url: doc.file_url, title: doc.title })}
+                              className="relative w-full h-44 rounded-2xl overflow-hidden bg-stone-100 dark:bg-stone-850 border border-[#EFECE5] dark:border-stone-750 mb-3 group cursor-pointer"
+                            >
+                              <img
+                                src={doc.file_url}
+                                alt={doc.title}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              />
+                              <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-semibold gap-1.5 backdrop-blur-[2px]">
+                                <ExternalLink className="w-4 h-4" />
+                                <span>Ver foto en grande</span>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="flex items-start justify-between gap-3 mb-2.5">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              {!isImage && (
+                                <div
+                                  className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
+                                    isPdf
+                                      ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
+                                      : isWord
+                                      ? 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border border-sky-200 dark:border-sky-800'
+                                      : 'bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-300'
+                                  }`}
+                                >
+                                  <span className="uppercase text-[10px] tracking-tight">{ext || 'DOC'}</span>
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <h4 className="text-sm font-bold text-[#222624] dark:text-stone-100 truncate">
+                                  {doc.title}
+                                </h4>
+                                <p className="text-xs text-[#606763] dark:text-stone-400 mt-0.5">
+                                  {getDocTypeLabel(doc.document_type)}
+                                </p>
+                              </div>
+                            </div>
+
+                            <span className="text-[11px] font-semibold text-[#606763] dark:text-stone-400 px-2 py-0.5 rounded-md bg-[#FAF8F5] dark:bg-stone-800 border border-[#E5E1D6] dark:border-stone-700 shrink-0">
+                              {doc.document_date ? formatInMontevideo(doc.document_date, 'dd/MM/yyyy') : 'Sin fecha'}
+                            </span>
                           </div>
-                          <div className="min-w-0">
-                            <h4 className="text-sm font-bold text-[#222624] dark:text-stone-100 truncate">
-                              {doc.title}
-                            </h4>
-                            <p className="text-xs text-[#606763] dark:text-stone-400 mt-0.5">
-                              {getDocTypeLabel(doc.document_type)}
+
+                          {doc.notes && (
+                            <p className="text-xs text-[#606763] dark:text-stone-400 bg-[#FAF8F5] dark:bg-stone-850 p-2.5 rounded-xl border border-[#EFECE5] dark:border-stone-750 mb-3">
+                              {doc.notes}
                             </p>
-                          </div>
+                          )}
+
+                          <p className="text-[11px] text-[#8E9490] dark:text-stone-400 truncate mb-1">
+                            Archivo: <span className="font-medium text-[#222624] dark:text-stone-300">{doc.file_name}</span>
+                          </p>
                         </div>
 
-                        <span className="text-[11px] font-semibold text-[#606763] dark:text-stone-400 px-2 py-0.5 rounded-md bg-[#FAF8F5] dark:bg-stone-800 border border-[#E5E1D6] dark:border-stone-700 shrink-0">
-                          {doc.document_date ? formatInMontevideo(doc.document_date, 'dd/MM/yyyy') : 'Sin fecha'}
-                        </span>
+                        <div className="flex items-center justify-between pt-2.5 border-t border-[#EFECE5] dark:border-stone-800">
+                          <a
+                            href={doc.file_url}
+                            download={doc.file_name}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#E9EFEA] hover:bg-[#D8E6DB] text-[#274033] dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 dark:text-emerald-300 text-xs font-semibold transition-colors shadow-2xs"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            <span>Descargar / Abrir</span>
+                          </a>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteDocument(doc.id, doc.title)}
+                            className="p-1.5 rounded-lg text-[#C34A3E] dark:text-rose-400 hover:bg-[#FDF2F0] dark:hover:bg-rose-950/40 transition-colors"
+                            title="Eliminar documento o foto"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
 
-                      {doc.notes && (
-                        <p className="text-xs text-[#606763] dark:text-stone-400 bg-[#FAF8F5] dark:bg-stone-850 p-2.5 rounded-xl border border-[#EFECE5] dark:border-stone-750 mb-3">
-                          {doc.notes}
-                        </p>
-                      )}
+      {/* Tab 4: Weight Control */}
+      {activeTab === 'weight' && (
+        <div className="space-y-6">
+          {/* Summary Stat Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+            {/* Current Weight */}
+            <div className="bg-white dark:bg-stone-900 rounded-2xl sm:rounded-3xl border border-[#E5E1D6] dark:border-stone-800 p-4 sm:p-5 shadow-xs flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-[#E9EFEA] dark:bg-emerald-950/40 text-[#3E5A4D] dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <Scale className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-[#606763] dark:text-stone-400">
+                  Peso Actual ({activePet?.name || 'Mascota'})
+                </p>
+                <p className="text-2xl font-extrabold text-[#222624] dark:text-stone-100 tracking-tight mt-0.5">
+                  {activePet?.weight_kg ? `${activePet.weight_kg} kg` : (weightLogs[0]?.weight_kg ? `${weightLogs[0].weight_kg} kg` : 'Sin datos')}
+                </p>
+              </div>
+            </div>
 
-                      <p className="text-[11px] text-[#8E9490] dark:text-stone-400 truncate mb-1">
-                        Archivo: <span className="font-medium text-[#222624] dark:text-stone-300">{doc.file_name}</span>
-                      </p>
-                    </div>
+            {/* Weight Trend / Delta */}
+            <div className="bg-white dark:bg-stone-900 rounded-2xl sm:rounded-3xl border border-[#E5E1D6] dark:border-stone-800 p-4 sm:p-5 shadow-xs flex items-center gap-3.5">
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
+                weightDiff > 0
+                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                  : weightDiff < 0
+                  ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
+                  : 'bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300'
+              }`}>
+                {weightDiff > 0 ? (
+                  <TrendingUp className="w-6 h-6" />
+                ) : weightDiff < 0 ? (
+                  <TrendingDown className="w-6 h-6" />
+                ) : (
+                  <Minus className="w-6 h-6" />
+                )}
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-[#606763] dark:text-stone-400">
+                  Evolución vs Anterior
+                </p>
+                <p className="text-lg font-bold text-[#222624] dark:text-stone-100 mt-0.5">
+                  {weightDiffString}
+                </p>
+              </div>
+            </div>
 
-                    <div className="flex items-center justify-between pt-2.5 border-t border-[#EFECE5] dark:border-stone-800">
-                      <a
-                        href={doc.file_url}
-                        download={doc.file_name}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#E9EFEA] hover:bg-[#D8E6DB] text-[#274033] dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 dark:text-emerald-300 text-xs font-semibold transition-colors shadow-2xs"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                        <span>Descargar / Abrir</span>
-                      </a>
+            {/* Last Weigh-in Date */}
+            <div className="bg-white dark:bg-stone-900 rounded-2xl sm:rounded-3xl border border-[#E5E1D6] dark:border-stone-800 p-4 sm:p-5 shadow-xs flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-[#FAF8F5] dark:bg-stone-800 text-[#606763] dark:text-stone-300 flex items-center justify-center shrink-0">
+                <Calendar className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-[#606763] dark:text-stone-400">
+                  Último Pesaje
+                </p>
+                <p className="text-sm font-bold text-[#222624] dark:text-stone-100 mt-0.5">
+                  {weightLogs[0] ? formatInMontevideo(weightLogs[0].logged_date, 'dd/MM/yyyy') : 'Pendiente'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Weight History List */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-[#222624] dark:text-stone-100">
+                Historial de Pesajes
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsWeightModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#3E5A4D] hover:bg-[#32493E] text-white text-xs font-semibold shadow-xs"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Registrar Peso</span>
+              </button>
+            </div>
+
+            {weightLogs.length === 0 ? (
+              <div className="bg-white dark:bg-stone-900 rounded-2xl sm:rounded-3xl border border-[#E5E1D6] dark:border-stone-800 p-8 text-center shadow-xs">
+                <Scale className="w-8 h-8 text-[#8E9490] dark:text-stone-500 mx-auto mb-2" />
+                <p className="text-sm font-semibold text-[#222624] dark:text-stone-100">
+                  Aún no hay pesajes registrados
+                </p>
+                <p className="text-xs text-[#606763] dark:text-stone-400 mt-1 max-w-sm mx-auto">
+                  Llevá el control del peso corporal para dosificación exacta de medicamentos y salud general.
+                </p>
+              </div>
+            ) : (
+              <div className="bg-white dark:bg-stone-900 rounded-2xl sm:rounded-3xl border border-[#E5E1D6] dark:border-stone-800 overflow-hidden shadow-xs divide-y divide-[#EFECE5] dark:divide-stone-800">
+                {weightLogs.map((log, index) => {
+                  const nextLog = weightLogs[index + 1];
+                  const diff = nextLog ? Number((log.weight_kg - nextLog.weight_kg).toFixed(2)) : null;
+
+                  return (
+                    <div
+                      key={log.id}
+                      className="p-4 sm:p-5 flex items-center justify-between gap-4 hover:bg-[#FAF8F5]/60 dark:hover:bg-stone-850/60 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-[#E9EFEA] dark:bg-emerald-950/40 text-[#3E5A4D] dark:text-emerald-400 flex items-center justify-center font-bold text-xs shrink-0">
+                          <Scale className="w-5 h-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-base font-extrabold text-[#222624] dark:text-stone-100">
+                              {log.weight_kg} kg
+                            </span>
+                            {diff !== null ? (
+                              <span
+                                className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                                  diff > 0
+                                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
+                                    : diff < 0
+                                    ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300'
+                                    : 'bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300'
+                                }`}
+                              >
+                                {diff > 0 ? `+${diff} kg` : diff < 0 ? `${diff} kg` : '= Estable'}
+                              </span>
+                            ) : (
+                              <span className="text-[11px] font-medium text-[#606763] dark:text-stone-400 px-2 py-0.5 rounded-full bg-stone-100 dark:bg-stone-800">
+                                Inicial
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-[#606763] dark:text-stone-400 mt-0.5 capitalize">
+                            {formatInMontevideo(log.logged_date, "EEEE d 'de' MMMM, yyyy")}
+                          </p>
+                          {log.notes && (
+                            <p className="text-xs text-[#606763] dark:text-stone-400 italic mt-1">
+                              &quot;{log.notes}&quot;
+                            </p>
+                          )}
+                        </div>
+                      </div>
 
                       <button
                         type="button"
-                        onClick={() => handleDeleteDocument(doc.id, doc.title)}
-                        className="p-1.5 rounded-lg text-[#C34A3E] dark:text-rose-400 hover:bg-[#FDF2F0] dark:hover:bg-rose-950/40 transition-colors"
-                        title="Eliminar documento"
+                        onClick={() => handleDeleteWeightLog(log.id)}
+                        className="p-2 rounded-xl text-[#C34A3E] dark:text-rose-400 hover:bg-[#FDF2F0] dark:hover:bg-rose-950/40 transition-colors shrink-0"
+                        title="Eliminar pesaje"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Lightbox Preview for Photos */}
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4 backdrop-blur-xs"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div className="relative max-w-3xl max-h-[90vh] flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={previewImage.url}
+              alt={previewImage.title}
+              className="max-w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl"
+            />
+            <div className="mt-3 flex items-center justify-between w-full px-2 text-white">
+              <p className="text-sm font-semibold truncate">{previewImage.title}</p>
+              <button
+                type="button"
+                onClick={() => setPreviewImage(null)}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-xs font-semibold transition-colors"
+              >
+                <X className="w-4 h-4" />
+                <span>Cerrar</span>
+              </button>
             </div>
-          )}
+          </div>
         </div>
       )}
 
@@ -487,6 +802,12 @@ export default function SaludPage() {
       <DocumentModal
         isOpen={isDocModalOpen}
         onClose={() => setIsDocModalOpen(false)}
+        onSuccess={loadData}
+      />
+
+      <WeightModal
+        isOpen={isWeightModalOpen}
+        onClose={() => setIsWeightModalOpen(false)}
         onSuccess={loadData}
       />
     </div>

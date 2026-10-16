@@ -20,3 +20,14 @@ export interface SymptomLog {
   created_at: string;
   updated_at: string;
 }
+
+export interface WeightLog {
+  id: string;
+  pet_id: string;
+  weight_kg: number;
+  logged_date: string; // YYYY-MM-DD
+  notes?: string;
+  created_at: string;
+  updated_at?: string;
+}
+

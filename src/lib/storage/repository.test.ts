@@ -135,4 +135,73 @@ describe('KiraRepository Core Business Rules', () => {
     expect(corrected.notes).toContain('El perro escupió');
     expect(KiraRepository.getMedicationById(med.id)?.current_stock).toBe(20);
   });
+
+  it('does not return scheduled doses before medication start_date', () => {
+    const pet = KiraRepository.getPet();
+    // Start date is tomorrow (2026-10-16)
+    const med = KiraRepository.saveMedication(
+      {
+        pet_id: pet.id,
+        name: 'PontePet Future Test',
+        presentation: 'Comprimidos masticables',
+        dose_amount: 0.5,
+        dose_unit: 'comprimido',
+        track_inventory: false,
+        current_stock: 0,
+        low_stock_threshold: 0,
+        is_active: true,
+      },
+      {
+        frequency_type: 'daily',
+        times_of_day: ['08:00'],
+        start_date: '2026-10-16',
+        is_active: true,
+      }
+    );
+
+    // Query doses for today (2026-10-15)
+    const todayDoses = KiraRepository.getScheduledDoses('2026-10-15');
+    const todayPontepet = todayDoses.filter((d) => d.medication_id === med.id);
+    expect(todayPontepet.length).toBe(0); // Must NOT appear today!
+
+    // Query doses for tomorrow (2026-10-16)
+    const tomorrowDoses = KiraRepository.getScheduledDoses('2026-10-16');
+    const tomorrowPontepet = tomorrowDoses.filter((d) => d.medication_id === med.id);
+    expect(tomorrowPontepet.length).toBe(1); // Appears on start_date
+  });
+
+  it('tracks weight logs, recalculates pet weight, and allows deletion', () => {
+    const pet = KiraRepository.getPet();
+    
+    // Add first weight log
+    const log1 = KiraRepository.addWeightLog({
+      pet_id: pet.id,
+      weight_kg: 8.8,
+      logged_date: '2026-10-01',
+      notes: 'Control inicial',
+    });
+    expect(log1.weight_kg).toBe(8.8);
+    expect(KiraRepository.getPet(pet.id).weight_kg).toBe(8.8);
+
+    // Add second weight log
+    const log2 = KiraRepository.addWeightLog({
+      pet_id: pet.id,
+      weight_kg: 9.1,
+      logged_date: '2026-10-15',
+      notes: 'Subió de peso saludablemente',
+    });
+    expect(log2.weight_kg).toBe(9.1);
+    expect(KiraRepository.getPet(pet.id).weight_kg).toBe(9.1);
+
+    const logs = KiraRepository.getWeightLogs(pet.id);
+    expect(logs.length).toBe(2);
+    expect(logs[0].weight_kg).toBe(9.1); // Most recent date first
+    expect(logs[1].weight_kg).toBe(8.8);
+
+    // Delete latest log -> pet weight reverts to remaining log
+    KiraRepository.deleteWeightLog(log2.id);
+    expect(KiraRepository.getPet(pet.id).weight_kg).toBe(8.8);
+    expect(KiraRepository.getWeightLogs(pet.id).length).toBe(1);
+  });
 });
+
