@@ -22,11 +22,15 @@ const NAV_ITEMS = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [activePet, setActivePet] = useState<Pet>(KiraRepository.getActivePet());
+  const [activePet, setActivePet] = useState<Pet | null>(null);
+  const [mounted, setMounted] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(CloudSyncService.getStatus());
 
   useEffect(() => {
+    setMounted(true);
+    setActivePet(KiraRepository.getActivePet());
+
     CloudSyncService.init().then(() => {
       setSyncStatus(CloudSyncService.getStatus());
     });
@@ -99,21 +103,32 @@ export function Sidebar() {
           className="p-3 rounded-xl bg-[#FAF8F5] border border-[#EFECE5] hover:border-[#D3DFD7] transition-all block"
         >
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-full bg-[#3E5A4D] text-white flex items-center justify-center font-bold text-xs shrink-0">
-              {activePet?.name ? activePet.name.charAt(0).toUpperCase() : '🐾'}
+            <div
+              className="w-7 h-7 rounded-full bg-[#3E5A4D] text-white flex items-center justify-center font-bold text-xs shrink-0"
+              suppressHydrationWarning
+            >
+              {mounted && activePet?.name ? activePet.name.charAt(0).toUpperCase() : '🐾'}
             </div>
             <div className="overflow-hidden">
-              <p className="text-xs font-semibold text-[#222624] truncate">
-                {activePet?.name || 'Mascotas'}
+              <p
+                className="text-xs font-semibold text-[#222624] truncate"
+                suppressHydrationWarning
+              >
+                {mounted && activePet?.name ? activePet.name : 'Mascotas'}
               </p>
-              <p className="text-[10px] text-[#606763] truncate">
-                {activePet?.species ? `${activePet.species} ${activePet.breed ? `• ${activePet.breed}` : ''}` : 'Sin perfil activo'}
+              <p
+                className="text-[10px] text-[#606763] truncate"
+                suppressHydrationWarning
+              >
+                {mounted && activePet?.species
+                  ? `${activePet.species} ${activePet.breed ? `• ${activePet.breed}` : ''}`
+                  : 'Gestión y perfiles'}
               </p>
             </div>
           </div>
         </Link>
 
-        {syncStatus.isAuthenticated ? (
+        {mounted && syncStatus.isAuthenticated ? (
           <button
             type="button"
             onClick={() => setIsAuthModalOpen(true)}
@@ -130,7 +145,7 @@ export function Sidebar() {
             </div>
             <Settings className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 shrink-0" />
           </button>
-        ) : (
+        ) : mounted ? (
           <button
             type="button"
             onClick={() => setIsAuthModalOpen(true)}
@@ -139,6 +154,11 @@ export function Sidebar() {
             <User className="w-3.5 h-3.5" />
             <span>Iniciar Sesión / Crear</span>
           </button>
+        ) : (
+          <div className="w-full py-2.5 px-3 rounded-xl bg-[#FAF8F5] border border-[#EFECE5] text-[#606763] text-xs font-medium flex items-center justify-center gap-2">
+            <User className="w-3.5 h-3.5 opacity-60" />
+            <span>PawCare</span>
+          </div>
         )}
       </div>
 

@@ -8,10 +8,11 @@ import { ChevronDown, Check, Plus } from 'lucide-react';
 import { PetModal } from './pet-modal';
 
 export function PetSwitcher() {
-  const [activePet, setActivePet] = useState<Pet>(KiraRepository.getActivePet());
-  const [pets, setPets] = useState<Pet[]>(KiraRepository.getPets());
+  const [activePet, setActivePet] = useState<Pet | null>(null);
+  const [pets, setPets] = useState<Pet[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const refreshPets = () => {
@@ -20,6 +21,9 @@ export function PetSwitcher() {
   };
 
   useEffect(() => {
+    setMounted(true);
+    refreshPets();
+
     const handlePetChange = () => {
       refreshPets();
     };
@@ -45,6 +49,16 @@ export function PetSwitcher() {
     KiraRepository.setActivePetId(petId);
     setIsOpen(false);
   };
+
+  if (!mounted) {
+    return (
+      <div className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-[#E9EFEA] dark:bg-emerald-950/40 text-[#274033] dark:text-emerald-300 border border-[#D3DFD7] dark:border-emerald-800 text-xs font-semibold shadow-2xs">
+        <span className="text-sm">🐾</span>
+        <span className="font-bold">Mascotas</span>
+        <ChevronDown className="w-3.5 h-3.5 text-[#3E5A4D] dark:text-emerald-400 opacity-60" />
+      </div>
+    );
+  }
 
   return (
     <div className="relative inline-block" ref={dropdownRef}>
@@ -81,7 +95,7 @@ export function PetSwitcher() {
 
           <div className="space-y-1 mb-1.5 max-h-48 overflow-y-auto">
             {pets.map((pet) => {
-              const isSelected = pet.id === activePet.id;
+              const isSelected = pet.id === activePet?.id;
               return (
                 <button
                   key={pet.id}

@@ -23,10 +23,12 @@ export function TopHeader() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [activePet, setActivePet] = useState<Pet | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(CloudSyncService.getStatus());
+  const [mounted, setMounted] = useState(false);
   const router = useRouter();
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    setMounted(true);
     queueMicrotask(() => {
       // Current date formatted in Spanish
       const dateFormatted = formatInMontevideo(new Date(), "EEEE, d 'de' MMMM");
@@ -103,7 +105,7 @@ export function TopHeader() {
         {/* Status Indicators & Theme Toggle */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           {/* Supabase Cloud Connection Status */}
-          {syncStatus.isAuthenticated ? (
+          {mounted && syncStatus.isAuthenticated ? (
             <div className="relative" ref={userMenuRef}>
               <button
                 type="button"
@@ -195,7 +197,7 @@ export function TopHeader() {
                 </div>
               )}
             </div>
-          ) : (
+          ) : mounted ? (
             <button
               type="button"
               onClick={() => setIsAuthModalOpen(true)}
@@ -205,6 +207,8 @@ export function TopHeader() {
               <span className="hidden sm:inline">Iniciar Sesión</span>
               <span className="sm:hidden">Entrar</span>
             </button>
+          ) : (
+            <div className="w-20 h-7 rounded-full bg-stone-100 dark:bg-stone-800 animate-pulse shrink-0" />
           )}
 
           {/* Recordatorios badge on desktop */}
