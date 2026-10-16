@@ -35,6 +35,7 @@ import { isLiveSupabaseConfigured } from '@/lib/supabase/client';
 import { SupabaseCloudRepository } from '@/lib/supabase/cloud-repository';
 import { SupabaseAuthService } from '@/lib/supabase/auth-service';
 import { buildWhatsAppDirectLink } from '@/lib/whatsapp/client';
+import { WhatsAppShareCard } from '@/components/whatsapp/whatsapp-share-card';
 
 export default function AjustesPage() {
   const router = useRouter();
@@ -234,31 +235,6 @@ export default function AjustesPage() {
     a.download = `pawcare-backup-${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
-  };
-
-  const handleClearLocalData = () => {
-    if (
-      confirm(
-        '¿Deseas restablecer el almacenamiento local del navegador? Tu cuenta y datos en Supabase permanecerán seguros.'
-      )
-    ) {
-      KiraRepository.clearAllData();
-      loadAllData();
-      alert('Almacenamiento local restablecido y limpio.');
-    }
-  };
-
-  const handleTestWhatsAppLink = () => {
-    const testUrl = buildWhatsAppDirectLink({
-      phone: whatsappPhone,
-      petName: activePet?.name || 'Kira',
-      medicationName: 'Meloxicam 1.5 mg/ml',
-      doseAmount: 1,
-      doseUnit: 'ml',
-      scheduledTime: '09:00',
-      instructions: 'Administrar junto con el desayuno',
-    });
-    window.open(testUrl, '_blank');
   };
 
   return (
@@ -525,172 +501,8 @@ export default function AjustesPage() {
       </div>
 
       <form onSubmit={handleSaveSettings} className="space-y-6">
-        {/* 3. Recordatorios por WhatsApp (Alternativas sin Meta Business) */}
-        <div className="bg-white dark:bg-stone-900 rounded-2xl border border-[#E5E1D6] dark:border-stone-800 p-5 shadow-xs space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-[#EFECE5] dark:border-stone-800">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                <MessageSquare className="w-5 h-5" />
-              </div>
-              <div>
-                <h2 className="text-sm font-bold text-[#222624] dark:text-stone-100">
-                  Recordatorios de WhatsApp
-                </h2>
-                <p className="text-[11px] text-[#606763] dark:text-stone-400">
-                  Alternativas sencillas y directas sin verificar empresa en Meta
-                </p>
-              </div>
-            </div>
-
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={remindersEnabled}
-                onChange={(e) => setRemindersEnabled(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-10 h-5 bg-[#E5E1D6] dark:bg-stone-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#3E5A4D]" />
-            </label>
-          </div>
-
-          {/* Explanation Box */}
-          <div className="p-4 rounded-xl bg-[#FAF8F5] dark:bg-stone-800/60 border border-[#E5E1D6] dark:border-stone-700 space-y-3">
-            <div className="flex items-start gap-2.5">
-              <Sparkles className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-              <div className="text-xs text-[#222624] dark:text-stone-200 space-y-1">
-                <p className="font-bold">
-                  Alternativa Recomendada: Enlaces directos wa.me (1 Clic)
-                </p>
-                <p className="text-[#606763] dark:text-stone-400 leading-relaxed">
-                  Ya no necesitas lidiar con la verificación de empresas de Meta ni pagar mensualidades.
-                  En el <strong>Panel de Inicio</strong> y al registrar tomas, tienes el botón directo{' '}
-                  <span className="font-semibold text-emerald-700 dark:text-emerald-400">
-                    &ldquo;Avisar por WhatsApp&rdquo;
-                  </span>{' '}
-                  que abre la app con el mensaje de la dosis listo para enviártelo a ti mismo o a
-                  cualquier familiar.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-1">
-              <button
-                type="button"
-                onClick={handleTestWhatsAppLink}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
-              >
-                <Send className="w-3.5 h-3.5" />
-                <span>Probar aviso en mi WhatsApp</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-            <div>
-              <label className="block text-xs font-semibold text-[#222624] dark:text-stone-200 mb-1">
-                Tu número de WhatsApp (para recordatorios)
-              </label>
-              <input
-                type="tel"
-                placeholder="+598 95 123 456"
-                value={whatsappPhone}
-                onChange={(e) => setWhatsappPhone(e.target.value)}
-                className="w-full text-xs px-3 py-2 rounded-xl border border-[#E5E1D6] dark:border-stone-700 bg-white dark:bg-stone-800 text-[#222624] dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-[#3E5A4D]"
-              />
-              <p className="text-[10px] text-[#606763] dark:text-stone-400 mt-1">
-                Incluye código de país (+598 en Uruguay, +54 en Argentina, etc.)
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-[#222624] dark:text-stone-200 mb-1">
-                Anticipación del recordatorio
-              </label>
-              <select
-                value={advanceMinutes}
-                onChange={(e) => setAdvanceMinutes(Number(e.target.value))}
-                className="w-full text-xs px-3 py-2 rounded-xl border border-[#E5E1D6] dark:border-stone-700 bg-white dark:bg-stone-800 text-[#222624] dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-[#3E5A4D]"
-              >
-                <option value={0}>En el horario exacto de la toma</option>
-                <option value={10}>10 minutos antes</option>
-                <option value={15}>15 minutos antes (recomendado)</option>
-                <option value={30}>30 minutos antes</option>
-              </select>
-            </div>
-          </div>
-
-          {/* CallMeBot Optional Automatic Bot */}
-          <div className="p-3.5 rounded-xl border border-dashed border-[#D3DFD7] dark:border-stone-700 bg-[#FAF8F5]/60 dark:bg-stone-800/30 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-[#222624] dark:text-stone-200">
-                Alternativa Automática: CallMeBot API (Opcional)
-              </span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-stone-100 dark:bg-stone-700 text-stone-600 dark:text-stone-300 font-semibold">
-                Sin Meta Business
-              </span>
-            </div>
-            <p className="text-[11px] text-[#606763] dark:text-stone-400">
-              Si querés que un bot te mande mensajes automáticos sin tocar la pantalla: envia{' '}
-              <code className="text-xs bg-stone-200 dark:bg-stone-700 px-1 rounded">
-                I allow callmebot to send me messages
-              </code>{' '}
-              por WhatsApp al <strong>+34 644 26 33 77</strong>. Te responderá de inmediato con tu API
-              Key personal gratuita.
-            </p>
-            <input
-              type="text"
-              placeholder="Pega aquí tu API Key de CallMeBot (opcional)"
-              value={callmebotApiKey}
-              onChange={(e) => setCallmebotApiKey(e.target.value)}
-              className="w-full text-xs px-3 py-2 rounded-xl border border-[#E5E1D6] dark:border-stone-700 bg-white dark:bg-stone-800 text-[#222624] dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-[#3E5A4D]"
-            />
-          </div>
-
-          {/* Quiet Hours */}
-          <div className="pt-2 border-t border-[#EFECE5] dark:border-stone-800">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <Moon className="w-4 h-4 text-[#606763] dark:text-stone-400" />
-                <span className="text-xs font-semibold text-[#222624] dark:text-stone-200">
-                  Horario silencioso
-                </span>
-              </div>
-              <input
-                type="checkbox"
-                checked={quietHoursEnabled}
-                onChange={(e) => setQuietHoursEnabled(e.target.checked)}
-                className="w-4 h-4 accent-[#3E5A4D] rounded cursor-pointer"
-              />
-            </div>
-
-            {quietHoursEnabled && (
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <div>
-                  <label className="block text-[11px] text-[#606763] dark:text-stone-400 mb-1">
-                    Desde
-                  </label>
-                  <input
-                    type="time"
-                    value={quietHoursStart}
-                    onChange={(e) => setQuietHoursStart(e.target.value)}
-                    className="w-full text-xs px-3 py-1.5 rounded-lg border border-[#E5E1D6] dark:border-stone-700 bg-white dark:bg-stone-800 text-[#222624] dark:text-stone-100"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] text-[#606763] dark:text-stone-400 mb-1">
-                    Hasta
-                  </label>
-                  <input
-                    type="time"
-                    value={quietHoursEnd}
-                    onChange={(e) => setQuietHoursEnd(e.target.value)}
-                    className="w-full text-xs px-3 py-1.5 rounded-lg border border-[#E5E1D6] dark:border-stone-700 bg-white dark:bg-stone-800 text-[#222624] dark:text-stone-100"
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        {/* 3. Compartir Recordatorios por WhatsApp (Directo y sin intermediarios) */}
+        <WhatsAppShareCard />
 
         {/* 4. Appearance (Modo Claro / Oscuro) */}
         <div className="bg-white dark:bg-stone-900 rounded-2xl border border-[#E5E1D6] dark:border-stone-800 p-5 shadow-xs space-y-4">

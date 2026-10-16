@@ -3,6 +3,8 @@
 // 1. Direct Click-to-Chat (wa.me): 100% gratuito, sin configuración ni verificación de empresa.
 // 2. CallMeBot API: Notificaciones automáticas a WhatsApp personal con un API key gratuito.
 
+import { ScheduledDose } from '@/types/medication';
+
 export interface CallMeBotResult {
   success: boolean;
   messageId?: string;
@@ -29,6 +31,79 @@ export interface WhatsAppDirectLinkParams {
   scheduledTime: string;
   instructions?: string;
   confirmationUrl?: string;
+}
+
+export interface ScheduleShareParams {
+  petName: string;
+  startDate: string; // YYYY-MM-DD
+  endDate: string;   // YYYY-MM-DD
+  doses: ScheduledDose[];
+  phone?: string;
+}
+
+/**
+ * Builds a clean multi-day or single-day medication schedule to share with any contact or group on WhatsApp.
+ */
+export function buildScheduleWhatsAppMessage(params: ScheduleShareParams): { text: string; shareUrl: string } {
+  const { petName, startDate, endDate, doses, phone } = params;
+
+  const isSingleDay = startDate === endDate;
+  const lines: string[] = [
+    `🐾 *PawCare — Cronograma de Medicación*`,
+    `🐶 Mascota: *${petName}*`,
+  ];
+
+  if (isSingleDay) {
+    lines.push(`📅 Fecha: *${startDate}*`);
+  } else {
+    lines.push(`📅 Período: *${startDate}* al *${endDate}*`);
+  }
+  lines.push('');
+
+  if (doses.length === 0) {
+    lines.push(`_No hay tomas programadas registradas en este período._`);
+  } else {
+    // Group doses by scheduled_date
+    const byDate = new Map<string, ScheduledDose[]>();
+    for (const d of doses) {
+      if (!byDate.has(d.scheduled_date)) {
+        byDate.set(d.scheduled_date, []);
+      }
+      byDate.get(d.scheduled_date)!.push(d);
+    }
+
+    const sortedDates = Array.from(byDate.keys()).sort();
+
+    for (const dateKey of sortedDates) {
+      const dayDoses = byDate.get(dateKey) || [];
+      if (!isSingleDay) {
+        lines.push(`🗓️ *Fecha ${dateKey}:*`);
+      }
+
+      dayDoses.sort((a, b) => a.scheduled_time.localeCompare(b.scheduled_time));
+
+      for (const d of dayDoses) {
+        const medName = d.medication?.name || 'Medicamento';
+        const amount = d.dose_amount ? ` (${d.dose_amount} ${d.dose_unit || ''})`.trim() : '';
+        const statusIcon = d.status === 'administered' ? '✅' : '⏳';
+        const statusLabel = d.status === 'administered' ? 'Administrada' : 'Pendiente';
+        lines.push(`  ${statusIcon} *${d.scheduled_time} hs* — ${medName}${amount} [${statusLabel}]`);
+      }
+      lines.push('');
+    }
+  }
+
+  lines.push(`ℹ️ Compartido desde PawCare 🐾`);
+
+  const text = lines.join('\n');
+  const encoded = encodeURIComponent(text);
+  const cleanPhone = phone ? CallMeBotClient.normalizePhone(phone) : '';
+
+  const shareUrl = cleanPhone
+    ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encoded}`
+    : `https://api.whatsapp.com/send?text=${encoded}`;
+
+  return { text, shareUrl };
 }
 
 /**
