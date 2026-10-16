@@ -955,8 +955,15 @@ export class KiraRepository {
 
   static deleteDocument(id: string): void {
     this.init();
+    const docToDelete = memoryState.documents.find((d) => d.id === id);
     memoryState.documents = memoryState.documents.filter((d) => d.id !== id);
     saveToStorage(STORAGE_KEYS.DOCUMENTS, memoryState.documents);
+
+    if (isClient() && isLiveSupabaseConfigured()) {
+      SupabaseCloudRepository.deleteMedicalDocument(id, docToDelete?.file_url).catch((err) =>
+        console.warn('[CloudSync] deleteMedicalDocument cloud error:', err)
+      );
+    }
   }
 
   // --- WEIGHT LOGS & CONTROL ---

@@ -619,6 +619,22 @@ export class SupabaseCloudRepository {
     return data as MedicalDocument;
   }
 
+  static async deleteMedicalDocument(id: string, fileUrl?: string): Promise<boolean> {
+    if (!isLiveSupabaseConfigured()) return false;
+
+    try {
+      const res = await fetch('/api/documents/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, file_url: fileUrl }),
+      });
+      return res.ok;
+    } catch (err) {
+      console.error('[SupabaseCloud] Error calling delete document API:', err);
+      return false;
+    }
+  }
+
   // --- SETTINGS ---
   static async getUserSettings(): Promise<UserSettings | null> {
     if (!isLiveSupabaseConfigured()) return null;

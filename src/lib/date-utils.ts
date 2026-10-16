@@ -1,5 +1,6 @@
 // src/lib/date-utils.ts
 import { format, parseISO, addDays } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { toZonedTime, fromZonedTime, format as formatZoned } from 'date-fns-tz';
 import { FrequencyType, ScheduledDose, DoseStatus } from '@/types/medication';
 
@@ -17,10 +18,14 @@ export function getNowInMontevideo(): Date {
  */
 export function formatInMontevideo(
   date: Date | string,
-  formatPattern: string = 'dd/MM/yyyy HH:mm'
+  formatPattern: string = 'dd/MM/yyyy HH:mm',
+  options?: { locale?: any }
 ): string {
   const d = typeof date === 'string' ? parseISO(date) : date;
-  return formatZoned(d, formatPattern, { timeZone: MONTEVIDEO_TZ });
+  return formatZoned(d, formatPattern, {
+    timeZone: MONTEVIDEO_TZ,
+    locale: options?.locale || es,
+  });
 }
 
 /**

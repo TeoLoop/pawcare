@@ -27,7 +27,7 @@ import {
   TrendingDown,
   Minus,
   X,
-  Camera,
+  Eye,
 } from 'lucide-react';
 
 export default function SaludPage() {
@@ -43,6 +43,7 @@ export default function SaludPage() {
   const [isWeightModalOpen, setIsWeightModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'symptoms' | 'vet' | 'documents' | 'weight'>('symptoms');
   const [previewImage, setPreviewImage] = useState<{ url: string; title: string } | null>(null);
+  const [previewPdf, setPreviewPdf] = useState<{ url: string; title: string } | null>(null);
 
   const loadData = () => {
     setSymptoms(KiraRepository.getSymptomLogs());
@@ -54,6 +55,7 @@ export default function SaludPage() {
 
   const handleDeleteDocument = (id: string, title: string) => {
     if (confirm(`¿Estás seguro de eliminar el documento "${title}"?`)) {
+      setDocuments((prev) => prev.filter((d) => d.id !== id));
       KiraRepository.deleteDocument(id);
       loadData();
     }
@@ -122,7 +124,8 @@ export default function SaludPage() {
     if (dateStr === yesterdayStr) {
       return `Ayer, ${formatInMontevideo(dateStr, "d 'de' MMMM yyyy")}`;
     }
-    return formatInMontevideo(dateStr, "EEEE d 'de' MMMM yyyy");
+    const formatted = formatInMontevideo(dateStr, "EEEE d 'de' MMMM yyyy");
+    return formatted.charAt(0).toUpperCase() + formatted.slice(1);
   };
 
   const getDocTypeLabel = (type: string) => {
@@ -514,7 +517,7 @@ export default function SaludPage() {
                         className="bg-white dark:bg-stone-900 rounded-2xl sm:rounded-3xl border border-[#E5E1D6] dark:border-stone-800 p-4 sm:p-5 shadow-xs flex flex-col justify-between gap-3 hover:border-[#3E5A4D]/40 transition-colors"
                       >
                         <div>
-                          {/* Image preview thumbnail if document is an image */}
+                          {/* Image preview thumbnail */}
                           {isImage && (
                             <div
                               onClick={() => setPreviewImage({ url: doc.file_url, title: doc.title })}
@@ -532,14 +535,34 @@ export default function SaludPage() {
                             </div>
                           )}
 
+                          {/* PDF preview box */}
+                          {isPdf && (
+                            <div
+                              onClick={() => setPreviewPdf({ url: doc.file_url, title: doc.title })}
+                              className="relative w-full h-44 rounded-2xl overflow-hidden bg-rose-50/60 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/40 mb-3 group cursor-pointer flex flex-col items-center justify-center p-4 text-center transition-all hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                            >
+                              <div className="w-12 h-12 rounded-2xl bg-white dark:bg-stone-900 text-rose-600 dark:text-rose-400 flex items-center justify-center shadow-xs mb-2 group-hover:scale-105 transition-transform border border-rose-200 dark:border-rose-800">
+                                <FileText className="w-6 h-6" />
+                              </div>
+                              <span className="text-xs font-bold text-rose-800 dark:text-rose-200">
+                                Documento PDF
+                              </span>
+                              <span className="text-[11px] text-rose-600 dark:text-rose-400 mt-1">
+                                Tocá aquí para ver la vista previa completa
+                              </span>
+                              <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-semibold gap-1.5 backdrop-blur-[1px]">
+                                <Eye className="w-4 h-4" />
+                                <span>Abrir visor de PDF</span>
+                              </div>
+                            </div>
+                          )}
+
                           <div className="flex items-start justify-between gap-3 mb-2.5">
                             <div className="flex items-center gap-2.5 min-w-0">
-                              {!isImage && (
+                              {!isImage && !isPdf && (
                                 <div
                                   className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
-                                    isPdf
-                                      ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
-                                      : isWord
+                                    isWord
                                       ? 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border border-sky-200 dark:border-sky-800'
                                       : 'bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-300'
                                   }`}
@@ -573,22 +596,46 @@ export default function SaludPage() {
                           </p>
                         </div>
 
-                        <div className="flex items-center justify-between pt-2.5 border-t border-[#EFECE5] dark:border-stone-800">
-                          <a
-                            href={doc.file_url}
-                            download={doc.file_name}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#E9EFEA] hover:bg-[#D8E6DB] text-[#274033] dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 dark:text-emerald-300 text-xs font-semibold transition-colors shadow-2xs"
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                            <span>Descargar / Abrir</span>
-                          </a>
+                        <div className="flex items-center justify-between pt-2.5 border-t border-[#EFECE5] dark:border-stone-800 gap-2">
+                          <div className="flex items-center gap-1.5">
+                            {isPdf && (
+                              <button
+                                type="button"
+                                onClick={() => setPreviewPdf({ url: doc.file_url, title: doc.title })}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#FAF8F5] dark:bg-stone-800 hover:bg-[#EFECE5] dark:hover:bg-stone-750 text-[#222624] dark:text-stone-200 text-xs font-semibold border border-[#E5E1D6] dark:border-stone-700 transition-colors shadow-2xs"
+                              >
+                                <Eye className="w-3.5 h-3.5 text-[#3E5A4D] dark:text-emerald-400" />
+                                <span>Ver</span>
+                              </button>
+                            )}
+
+                            {isImage && (
+                              <button
+                                type="button"
+                                onClick={() => setPreviewImage({ url: doc.file_url, title: doc.title })}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#FAF8F5] dark:bg-stone-800 hover:bg-[#EFECE5] dark:hover:bg-stone-750 text-[#222624] dark:text-stone-200 text-xs font-semibold border border-[#E5E1D6] dark:border-stone-700 transition-colors shadow-2xs"
+                              >
+                                <Eye className="w-3.5 h-3.5 text-[#3E5A4D] dark:text-emerald-400" />
+                                <span>Ver</span>
+                              </button>
+                            )}
+
+                            <a
+                              href={doc.file_url}
+                              download={doc.file_name}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#E9EFEA] hover:bg-[#D8E6DB] text-[#274033] dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 dark:text-emerald-300 text-xs font-semibold transition-colors shadow-2xs"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                              <span>Descargar</span>
+                            </a>
+                          </div>
 
                           <button
                             type="button"
                             onClick={() => handleDeleteDocument(doc.id, doc.title)}
-                            className="p-1.5 rounded-lg text-[#C34A3E] dark:text-rose-400 hover:bg-[#FDF2F0] dark:hover:bg-rose-950/40 transition-colors"
+                            className="p-1.5 rounded-lg text-[#C34A3E] dark:text-rose-400 hover:bg-[#FDF2F0] dark:hover:bg-rose-950/40 transition-colors shrink-0"
                             title="Eliminar documento o foto"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -781,6 +828,61 @@ export default function SaludPage() {
                 <X className="w-4 h-4" />
                 <span>Cerrar</span>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PDF Viewer Lightbox Modal */}
+      {previewPdf && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-2 sm:p-4 backdrop-blur-xs"
+          onClick={() => setPreviewPdf(null)}
+        >
+          <div
+            className="relative w-full max-w-4xl h-[90vh] bg-white dark:bg-stone-900 rounded-3xl overflow-hidden shadow-2xl flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between p-3.5 sm:p-4 border-b border-[#E5E1D6] dark:border-stone-800 shrink-0">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 flex items-center justify-center shrink-0">
+                  <FileText className="w-4 h-4" />
+                </div>
+                <h3 className="text-sm font-bold text-[#222624] dark:text-stone-100 truncate">
+                  {previewPdf.title}
+                </h3>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <a
+                  href={previewPdf.url}
+                  download
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#E9EFEA] hover:bg-[#D8E6DB] text-[#274033] dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 dark:text-emerald-300 text-xs font-semibold transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Descargar</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setPreviewPdf(null)}
+                  className="p-1.5 rounded-xl text-stone-500 hover:text-stone-700 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
+                  title="Cerrar vista previa"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Embedded PDF iframe */}
+            <div className="flex-1 w-full h-full bg-stone-100 dark:bg-stone-950 relative">
+              <iframe
+                src={`${previewPdf.url}#view=FitH`}
+                title={previewPdf.title}
+                className="w-full h-full border-0"
+              />
             </div>
           </div>
         </div>
