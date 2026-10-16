@@ -158,7 +158,7 @@ export class KiraRepository {
     const now = new Date().toISOString();
     const newPet: Pet = {
       ...data,
-      id: `pet-${Date.now()}`,
+      id: crypto.randomUUID(),
       created_at: now,
       updated_at: now,
     };
@@ -299,7 +299,7 @@ export class KiraRepository {
 
       if (scheduleData) {
         med.schedule = {
-          id: existing.schedule?.id || `sched-${Date.now()}`,
+          id: existing.schedule?.id || crypto.randomUUID(),
           medication_id: med.id,
           frequency_type: scheduleData.frequency_type,
           times_of_day: scheduleData.times_of_day,
@@ -315,7 +315,7 @@ export class KiraRepository {
       memoryState.medications[existingIdx] = med;
     } else {
       // Create new
-      const id = `med-${Date.now()}`;
+      const id = data.id || crypto.randomUUID();
       med = {
         ...data,
         pet_id: assignedPetId,
@@ -326,7 +326,7 @@ export class KiraRepository {
 
       if (scheduleData) {
         med.schedule = {
-          id: `sched-${Date.now()}`,
+          id: crypto.randomUUID(),
           medication_id: id,
           frequency_type: scheduleData.frequency_type,
           times_of_day: scheduleData.times_of_day,
@@ -428,7 +428,7 @@ export class KiraRepository {
     for (const g of generated) {
       if (!existingTimeMap.has(g.scheduled_for)) {
         newDoses.push({
-          id: `dose-${med.id}-${g.scheduled_date}-${g.scheduled_time.replace(':', '')}`,
+          id: crypto.randomUUID(),
           pet_id: med.pet_id,
           medication_id: med.id,
           schedule_id: med.schedule.id,
@@ -531,7 +531,7 @@ export class KiraRepository {
 
     // Create Dose Log
     const log: DoseLog = {
-      id: `log-${Date.now()}`,
+      id: crypto.randomUUID(),
       scheduled_dose_id: input.scheduled_dose_id,
       pet_id: med.pet_id,
       medication_id: med.id,
@@ -696,7 +696,7 @@ export class KiraRepository {
     const assignedPetId = data.pet_id || memoryState.activePetId;
     const log: SymptomLog = {
       ...data,
-      id: `symptom-${Date.now()}`,
+      id: crypto.randomUUID(),
       pet_id: assignedPetId,
       created_at: now,
       updated_at: now,
@@ -795,7 +795,7 @@ export class KiraRepository {
     const assignedPetId = data.pet_id || memoryState.activePetId;
     const visit: VetVisit = {
       ...data,
-      id: `vet-${Date.now()}`,
+      id: crypto.randomUUID(),
       pet_id: assignedPetId,
       created_at: now,
       updated_at: now,
@@ -835,7 +835,7 @@ export class KiraRepository {
     const assignedPetId = data.pet_id || memoryState.activePetId;
     const doc: MedicalDocument = {
       ...data,
-      id: `doc-${Date.now()}`,
+      id: crypto.randomUUID(),
       pet_id: assignedPetId,
       created_at: now,
     };
@@ -895,12 +895,16 @@ export class KiraRepository {
 
   // --- CLOUD HYDRATION SETTERS ---
   static setPetsFromCloud(pets: Pet[]): void {
-    if (!pets || pets.length === 0) return;
     this.init();
-    memoryState.pets = pets;
-    if (!pets.some((p) => p.id === memoryState.activePetId)) {
-      memoryState.activePetId = pets[0].id;
-      saveToStorage(STORAGE_KEYS.ACTIVE_PET_ID, memoryState.activePetId);
+    memoryState.pets = pets || [];
+    if (pets && pets.length > 0) {
+      if (!pets.some((p) => p.id === memoryState.activePetId)) {
+        memoryState.activePetId = pets[0].id;
+        saveToStorage(STORAGE_KEYS.ACTIVE_PET_ID, memoryState.activePetId);
+      }
+    } else {
+      memoryState.activePetId = '';
+      saveToStorage(STORAGE_KEYS.ACTIVE_PET_ID, '');
     }
     saveToStorage(STORAGE_KEYS.PETS, memoryState.pets);
     if (isClient()) {
@@ -909,44 +913,38 @@ export class KiraRepository {
   }
 
   static setMedicationsFromCloud(medications: Medication[]): void {
-    if (!medications) return;
     this.init();
-    memoryState.medications = medications;
+    memoryState.medications = medications || [];
     saveToStorage(STORAGE_KEYS.MEDICATIONS, memoryState.medications);
   }
 
   static setScheduledDosesFromCloud(doses: ScheduledDose[]): void {
-    if (!doses) return;
     this.init();
-    memoryState.scheduledDoses = doses;
+    memoryState.scheduledDoses = doses || [];
     saveToStorage(STORAGE_KEYS.DOSES, memoryState.scheduledDoses);
   }
 
   static setDoseLogsFromCloud(logs: DoseLog[]): void {
-    if (!logs) return;
     this.init();
-    memoryState.doseLogs = logs;
+    memoryState.doseLogs = logs || [];
     saveToStorage(STORAGE_KEYS.DOSE_LOGS, memoryState.doseLogs);
   }
 
   static setSymptomsFromCloud(symptoms: SymptomLog[]): void {
-    if (!symptoms) return;
     this.init();
-    memoryState.symptoms = symptoms;
+    memoryState.symptoms = symptoms || [];
     saveToStorage(STORAGE_KEYS.SYMPTOMS, memoryState.symptoms);
   }
 
   static setVetVisitsFromCloud(visits: VetVisit[]): void {
-    if (!visits) return;
     this.init();
-    memoryState.vetVisits = visits;
+    memoryState.vetVisits = visits || [];
     saveToStorage(STORAGE_KEYS.VET_VISITS, memoryState.vetVisits);
   }
 
   static setDocumentsFromCloud(docs: MedicalDocument[]): void {
-    if (!docs) return;
     this.init();
-    memoryState.documents = docs;
+    memoryState.documents = docs || [];
     saveToStorage(STORAGE_KEYS.DOCUMENTS, memoryState.documents);
   }
 
@@ -958,5 +956,26 @@ export class KiraRepository {
       ...settings,
     };
     saveToStorage(STORAGE_KEYS.SETTINGS, memoryState.settings);
+  }
+
+  static clearAllData(): void {
+    memoryState.pets = [];
+    memoryState.activePetId = '';
+    memoryState.settings = { ...INITIAL_SETTINGS };
+    memoryState.medications = [];
+    memoryState.scheduledDoses = [];
+    memoryState.doseLogs = [];
+    memoryState.symptoms = [];
+    memoryState.inventoryEvents = [];
+    memoryState.vetVisits = [];
+    memoryState.documents = [];
+    memoryState.notifications = [];
+    memoryState.notificationAttempts = [];
+    if (isClient()) {
+      Object.values(STORAGE_KEYS).forEach((k) => localStorage.removeItem(k));
+      localStorage.removeItem('kira_pet');
+      window.dispatchEvent(new CustomEvent('pawcare_synced'));
+      window.dispatchEvent(new CustomEvent('pawcare_pet_changed', { detail: { petId: '' } }));
+    }
   }
 }

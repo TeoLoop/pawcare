@@ -50,19 +50,30 @@ export function PetSwitcher() {
 
   return (
     <div className="relative inline-block" ref={dropdownRef}>
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#E9EFEA] hover:bg-[#DDE7DF] text-[#274033] border border-[#D3DFD7] text-xs font-semibold transition-all shadow-xs"
-        aria-expanded={isOpen}
-      >
-        <span className="text-sm">🐾</span>
-        <span className="font-bold">{activePet.name}</span>
-        <span className="text-[10px] text-[#3E5A4D] font-normal hidden sm:inline">
-          ({activePet.species})
-        </span>
-        <ChevronDown className={`w-3.5 h-3.5 text-[#3E5A4D] transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
+      {activePet?.name ? (
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#E9EFEA] hover:bg-[#DDE7DF] text-[#274033] border border-[#D3DFD7] text-xs font-semibold transition-all shadow-xs"
+          aria-expanded={isOpen}
+        >
+          <span className="text-sm">🐾</span>
+          <span className="font-bold">{activePet.name}</span>
+          <span className="text-[10px] text-[#3E5A4D] font-normal hidden sm:inline">
+            ({activePet.species})
+          </span>
+          <ChevronDown className={`w-3.5 h-3.5 text-[#3E5A4D] transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setIsAddModalOpen(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#E9EFEA] hover:bg-[#DDE7DF] text-[#274033] border border-[#D3DFD7] text-xs font-semibold transition-all shadow-xs"
+        >
+          <Plus className="w-3.5 h-3.5 text-[#3E5A4D]" />
+          <span>Registrar Mascota</span>
+        </button>
+      )}
 
       {isOpen && (
         <div className="absolute left-0 mt-2 w-56 rounded-2xl bg-white border border-[#E5E1D6] shadow-lg p-2 z-50 animate-in fade-in zoom-in-95 duration-100">

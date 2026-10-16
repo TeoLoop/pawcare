@@ -46,17 +46,17 @@ export function Modal({
       aria-modal="true"
     >
       <div
-        className={`bg-white rounded-2xl border border-[#E5E1D6] shadow-xl w-full ${maxWidth} max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150`}
+        className={`bg-white dark:bg-[#1C1E1D] rounded-2xl border border-[#E5E1D6] dark:border-stone-800 shadow-xl w-full ${maxWidth} max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150`}
       >
-        <div className="flex items-start justify-between p-5 border-b border-[#EFECE5]">
+        <div className="flex items-start justify-between p-5 border-b border-[#EFECE5] dark:border-stone-800">
           <div>
-            <h3 className="text-lg font-bold text-[#222624] tracking-tight">{title}</h3>
-            {description && <p className="text-xs text-[#606763] mt-0.5">{description}</p>}
+            <h3 className="text-lg font-bold text-[#222624] dark:text-stone-100 tracking-tight">{title}</h3>
+            {description && <p className="text-xs text-[#606763] dark:text-stone-400 mt-0.5">{description}</p>}
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-[#8E9490] hover:text-[#222624] hover:bg-[#FAF8F5] transition-colors"
+            className="p-1.5 rounded-lg text-[#8E9490] hover:text-[#222624] hover:bg-[#FAF8F5] dark:text-stone-400 dark:hover:text-stone-100 dark:hover:bg-stone-800 transition-colors"
             aria-label="Cerrar"
           >
             <X className="w-5 h-5" />

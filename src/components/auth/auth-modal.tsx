@@ -6,7 +6,8 @@ import { Modal } from '@/components/ui/modal';
 import { SupabaseAuthService } from '@/lib/supabase/auth-service';
 import { CloudSyncService, SyncStatus } from '@/lib/supabase/sync-service';
 import { isLiveSupabaseConfigured } from '@/lib/supabase/client';
-import { Cloud, CheckCircle2, AlertCircle, RefreshCw, UploadCloud, LogOut, Mail, Lock, User as UserIcon, ShieldCheck } from 'lucide-react';
+import { KiraRepository } from '@/lib/storage/repository';
+import { Cloud, CheckCircle2, AlertCircle, RefreshCw, LogOut, Mail, Lock, User as UserIcon, ShieldCheck, Settings } from 'lucide-react';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -91,12 +92,11 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialTab = 'signin' }:
   const handleSignOut = async () => {
     setLoading(true);
     await SupabaseAuthService.signOut();
+    KiraRepository.clearAllData();
     setSyncStatus(CloudSyncService.getStatus());
     setLoading(false);
-    setSuccessMsg('Sesión cerrada correctamente.');
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('pawcare_synced'));
-    }
+    onClose();
+    window.location.href = '/login';
   };
 
   const handleManualSync = async () => {
@@ -111,55 +111,15 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialTab = 'signin' }:
     }
   };
 
-  const handleUploadLocal = async () => {
-    if (!confirm('¿Deseás subir todos los datos locales actuales a tu base de datos en Supabase?')) {
-      return;
-    }
-    setLoading(true);
-    setErrorMsg(null);
-    const res = await CloudSyncService.uploadLocalDataToCloud();
-    setLoading(false);
-    if (!res.success) {
-      setErrorMsg(res.error || 'Error al subir los datos.');
-    } else {
-      setSuccessMsg(`Se migraron ${res.count} registros a tu base de datos en Supabase.`);
-    }
-  };
-
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       title={syncStatus.isAuthenticated ? "Mi Cuenta de PawCare" : (tab === 'signin' ? "Iniciar Sesión" : "Crear mi Cuenta")}
-      description={syncStatus.isAuthenticated ? "Sesión activa en tu base de datos de Supabase" : "Conectá tu cuenta para sincronizar tus mascotas y dosis en la nube."}
+      description={syncStatus.isAuthenticated ? "Gestión de sesión y sincronización con Supabase" : "Conectá tu cuenta para sincronizar tus mascotas y dosis en la nube."}
+      maxWidth={syncStatus.isAuthenticated ? "max-w-md" : "max-w-lg"}
     >
-      <div className="space-y-5 pt-1">
-        {/* Connection status header */}
-        <div className={`p-3.5 rounded-2xl border flex items-center justify-between text-xs ${
-          isConfigured
-            ? syncStatus.isAuthenticated
-              ? 'bg-[#E9EFEA] dark:bg-emerald-950/30 border-[#D3DFD7] dark:border-emerald-800 text-[#274033] dark:text-emerald-300'
-              : 'bg-[#FAF8F5] dark:bg-stone-800 border-[#E5E1D6] dark:border-stone-700 text-[#606763] dark:text-stone-300'
-            : 'bg-stone-50 dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-600'
-        }`}>
-          <div className="flex items-center gap-2.5">
-            <Cloud className={`w-4 h-4 shrink-0 ${syncStatus.isAuthenticated ? 'text-[#357A57] dark:text-emerald-400' : 'text-stone-500'}`} />
-            <span className="font-semibold">
-              {isConfigured
-                ? syncStatus.isAuthenticated
-                  ? `Conectado como: ${syncStatus.userEmail}`
-                  : 'Base de datos Supabase lista para conectar'
-                : 'Modo local activo'}
-            </span>
-          </div>
-
-          {syncStatus.isAuthenticated && (
-            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#357A57] bg-white dark:bg-stone-900 px-2 py-0.5 rounded-full border border-[#D3DFD7] dark:border-emerald-800">
-              <ShieldCheck className="w-3 h-3" /> Verificado
-            </span>
-          )}
-        </div>
-
+      <div className="space-y-4 pt-1">
         {errorMsg && (
           <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl flex items-center gap-2 text-xs text-red-700 dark:text-red-300">
             <AlertCircle className="w-4 h-4 shrink-0" />
@@ -177,50 +137,104 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialTab = 'signin' }:
         {/* If user is already authenticated */}
         {syncStatus.isAuthenticated ? (
           <div className="space-y-4">
-            <div className="p-4 bg-[#FAF8F5] dark:bg-stone-800/60 rounded-2xl border border-[#E5E1D6] dark:border-stone-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-[11px] font-bold text-[#606763] dark:text-stone-400 uppercase tracking-wider">
-                    Usuario Activo
-                  </div>
-                  <div className="text-sm font-bold text-[#222624] dark:text-stone-100 mt-0.5">
+            {/* User Profile Card */}
+            <div className="p-4 bg-[#FAF8F5] dark:bg-stone-800/60 rounded-2xl border border-[#E5E1D6] dark:border-stone-700 flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-full bg-[#3E5A4D] text-white flex items-center justify-center font-bold text-base shrink-0 shadow-xs">
+                {syncStatus.userEmail ? syncStatus.userEmail.charAt(0).toUpperCase() : 'U'}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-bold text-[#222624] dark:text-stone-100 truncate">
                     {syncStatus.userEmail}
-                  </div>
+                  </h4>
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800 shrink-0">
+                    <ShieldCheck className="w-3 h-3" /> Verificado
+                  </span>
                 </div>
+                <p className="text-xs text-[#606763] dark:text-stone-400 mt-0.5 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  Supabase PostgreSQL en línea
+                </p>
+              </div>
+            </div>
+
+            {/* Quick Details Grid */}
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="p-3 bg-white dark:bg-stone-900 rounded-xl border border-[#E5E1D6] dark:border-stone-700/60">
+                <span className="text-[10px] font-bold text-[#606763] dark:text-stone-400 uppercase tracking-wider block">
+                  Mascota Activa
+                </span>
+                <span className="text-xs font-bold text-[#222624] dark:text-stone-100 mt-1 block truncate">
+                  🐾 {KiraRepository.getActivePet()?.name || 'Kira'}
+                </span>
+              </div>
+
+              <div className="p-3 bg-white dark:bg-stone-900 rounded-xl border border-[#E5E1D6] dark:border-stone-700/60">
+                <span className="text-[10px] font-bold text-[#606763] dark:text-stone-400 uppercase tracking-wider block">
+                  Última Sincro
+                </span>
+                <span className="text-xs font-bold text-[#222624] dark:text-stone-100 mt-1 block truncate">
+                  {syncStatus.lastSyncedAt
+                    ? new Date(syncStatus.lastSyncedAt).toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit' })
+                    : 'Al día'}
+                </span>
+              </div>
+            </div>
+
+            {/* Action buttons */}
+            <div className="space-y-2 pt-1">
+              <button
+                type="button"
+                onClick={handleManualSync}
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FAF8F5] dark:bg-stone-800 hover:bg-[#EFECE5] dark:hover:bg-stone-700 border border-[#E5E1D6] dark:border-stone-700 text-[#222624] dark:text-stone-200 rounded-xl text-xs font-bold transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                {loading ? 'Sincronizando...' : 'Sincronizar datos ahora'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  window.location.href = '/ajustes';
+                }}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-stone-900 hover:bg-[#FAF8F5] dark:hover:bg-stone-800 border border-[#E5E1D6] dark:border-stone-700 text-[#3E5A4D] dark:text-emerald-400 rounded-xl text-xs font-bold transition-colors"
+              >
+                <Settings className="w-3.5 h-3.5" />
+                Configuración y recordatorios
+              </button>
+
+              <div className="pt-2 border-t border-[#EFECE5] dark:border-stone-800">
                 <button
                   type="button"
                   onClick={handleSignOut}
                   disabled={loading}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-600 hover:text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl transition-colors"
+                  className="w-full flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-bold text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl transition-colors"
                 >
                   <LogOut className="w-3.5 h-3.5" />
                   Cerrar sesión
                 </button>
               </div>
             </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={handleManualSync}
-                disabled={loading}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FAF8F5] dark:bg-stone-800 hover:bg-[#EFECE5] dark:hover:bg-stone-700 border border-[#E5E1D6] dark:border-stone-700 text-[#222624] dark:text-stone-200 rounded-xl text-xs font-bold transition-colors"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-                Sincronizar ahora
-              </button>
-              <button
-                type="button"
-                onClick={handleUploadLocal}
-                disabled={loading}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#3E5A4D] hover:bg-[#32493E] text-white rounded-xl text-xs font-bold transition-colors shadow-xs"
-              >
-                <UploadCloud className="w-3.5 h-3.5" />
-                Subir datos locales
-              </button>
-            </div>
           </div>
         ) : (
+          <>
+            {/* Connection status header */}
+            <div className={`p-3 rounded-xl border flex items-center justify-between text-xs ${
+              isConfigured
+                ? 'bg-[#FAF8F5] dark:bg-stone-800 border-[#E5E1D6] dark:border-stone-700 text-[#606763] dark:text-stone-300'
+                : 'bg-stone-50 dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-600'
+            }`}>
+              <div className="flex items-center gap-2">
+                <Cloud className="w-4 h-4 shrink-0 text-stone-500" />
+                <span className="font-semibold">
+                  {isConfigured
+                    ? 'Base de datos Supabase lista para conectar'
+                    : 'Conectando con Supabase...'}
+                </span>
+              </div>
+            </div>
           /* Authentication Forms */
           <div className="space-y-4">
             {/* Segmented Switch */}
@@ -377,8 +391,9 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialTab = 'signin' }:
               </form>
             )}
           </div>
-        )}
-      </div>
+        </>
+      )}
+    </div>
     </Modal>
   );
 }

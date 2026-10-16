@@ -61,6 +61,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
+    const userId = data.user.id;
+
+    // Ensure profile row exists
+    try {
+      await supabaseAdmin.from('profiles').upsert({
+        id: userId,
+        email: data.user.email,
+        full_name: fullName || 'Tutor',
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' });
+    } catch (e: unknown) {
+      console.warn('Profile upsert warning:', e);
+    }
+
+    // Ensure user_settings row exists
+    try {
+      await supabaseAdmin.from('user_settings').upsert({
+        user_id: userId,
+        timezone: 'America/Montevideo',
+        reminders_enabled: true,
+        advance_notice_minutes: 15,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id' });
+    } catch (e: unknown) {
+      console.warn('Settings upsert warning:', e);
+    }
+
     return NextResponse.json({
       success: true,
       user: {

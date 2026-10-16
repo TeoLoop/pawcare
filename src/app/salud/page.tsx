@@ -39,8 +39,15 @@ export default function SaludPage() {
     const handlePetChange = () => {
       loadData();
     };
+    const handleSynced = () => {
+      loadData();
+    };
     window.addEventListener('pawcare_pet_changed', handlePetChange);
-    return () => window.removeEventListener('pawcare_pet_changed', handlePetChange);
+    window.addEventListener('pawcare_synced', handleSynced);
+    return () => {
+      window.removeEventListener('pawcare_pet_changed', handlePetChange);
+      window.removeEventListener('pawcare_synced', handleSynced);
+    };
   }, []);
 
   const handleDownloadPdf = () => {

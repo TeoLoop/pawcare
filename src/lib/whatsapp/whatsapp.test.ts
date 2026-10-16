@@ -6,9 +6,39 @@ import { buildDoseIdempotencyKey } from './token';
 
 describe('WhatsApp Scheduler & Reliability Tests', () => {
   beforeEach(() => {
-    // Reset repository data
-    const pet = KiraRepository.getPet();
-    expect(pet.name).toBe('Kira');
+    KiraRepository.clearAllData();
+    const pet = KiraRepository.addPet({
+      name: 'Kira',
+      species: 'Canino',
+      breed: 'Mestiza (tipo Pastor)',
+      owner_id: 'user-default-001',
+    });
+    KiraRepository.updateSettings({
+      whatsapp_phone: '+59899123456',
+      reminders_enabled: true,
+      advance_notice_minutes: 15,
+    });
+    KiraRepository.saveMedication(
+      {
+        pet_id: pet.id,
+        name: 'Meloxicam 1.5 mg/ml',
+        presentation: 'Gotas',
+        dose_amount: 1,
+        dose_unit: 'ml',
+        instructions: 'Con el desayuno',
+        track_inventory: false,
+        current_stock: 0,
+        low_stock_threshold: 0,
+        is_active: true,
+      },
+      {
+        frequency_type: 'daily',
+        times_of_day: ['09:00'],
+        start_date: '2026-01-01',
+        is_active: true,
+      }
+    );
+    expect(KiraRepository.getPet().name).toBe('Kira');
   });
 
   it('generates consistent idempotency key for scheduled doses', () => {

@@ -99,12 +99,14 @@ export function Sidebar() {
         >
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-full bg-[#3E5A4D] text-white flex items-center justify-center font-bold text-xs shrink-0">
-              {activePet.name.charAt(0).toUpperCase()}
+              {activePet?.name ? activePet.name.charAt(0).toUpperCase() : '🐾'}
             </div>
             <div className="overflow-hidden">
-              <p className="text-xs font-semibold text-[#222624] truncate">{activePet.name}</p>
+              <p className="text-xs font-semibold text-[#222624] truncate">
+                {activePet?.name || 'Mascotas'}
+              </p>
               <p className="text-[10px] text-[#606763] truncate">
-                {activePet.species} {activePet.breed ? `• ${activePet.breed}` : ''}
+                {activePet?.species ? `${activePet.species} ${activePet.breed ? `• ${activePet.breed}` : ''}` : 'Sin perfil activo'}
               </p>
             </div>
           </div>
@@ -114,7 +116,7 @@ export function Sidebar() {
           <button
             type="button"
             onClick={() => setIsAuthModalOpen(true)}
-            className="w-full p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between text-left hover:bg-emerald-100 transition-colors"
+            className="w-full p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between text-left hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors"
           >
             <div className="flex items-center gap-2 overflow-hidden">
               <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
@@ -125,7 +127,7 @@ export function Sidebar() {
                 <p className="text-[10px] text-emerald-700 dark:text-emerald-400">Nube conectada</p>
               </div>
             </div>
-            <LogOut className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 shrink-0" />
+            <Settings className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 shrink-0" />
           </button>
         ) : (
           <button

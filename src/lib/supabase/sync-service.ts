@@ -81,45 +81,31 @@ export class CloudSyncService {
 
       // 1. Fetch pets from cloud
       const cloudPets = await SupabaseCloudRepository.getPets();
-      if (cloudPets && cloudPets.length > 0) {
-        KiraRepository.setPetsFromCloud(cloudPets);
-      }
+      KiraRepository.setPetsFromCloud(cloudPets || []);
 
       // 2. Fetch medications from cloud
       const cloudMeds = await SupabaseCloudRepository.getMedications();
-      if (cloudMeds && cloudMeds.length > 0) {
-        KiraRepository.setMedicationsFromCloud(cloudMeds);
-      }
+      KiraRepository.setMedicationsFromCloud(cloudMeds || []);
 
       // 3. Fetch scheduled doses
       const cloudDoses = await SupabaseCloudRepository.getScheduledDoses();
-      if (cloudDoses && cloudDoses.length > 0) {
-        KiraRepository.setScheduledDosesFromCloud(cloudDoses);
-      }
+      KiraRepository.setScheduledDosesFromCloud(cloudDoses || []);
 
       // 4. Fetch dose logs
       const cloudLogs = await SupabaseCloudRepository.getDoseLogs();
-      if (cloudLogs && cloudLogs.length > 0) {
-        KiraRepository.setDoseLogsFromCloud(cloudLogs);
-      }
+      KiraRepository.setDoseLogsFromCloud(cloudLogs || []);
 
       // 5. Fetch symptoms
       const cloudSymptoms = await SupabaseCloudRepository.getSymptomLogs();
-      if (cloudSymptoms && cloudSymptoms.length > 0) {
-        KiraRepository.setSymptomsFromCloud(cloudSymptoms);
-      }
+      KiraRepository.setSymptomsFromCloud(cloudSymptoms || []);
 
       // 6. Fetch vet visits
       const cloudVisits = await SupabaseCloudRepository.getVetVisits();
-      if (cloudVisits && cloudVisits.length > 0) {
-        KiraRepository.setVetVisitsFromCloud(cloudVisits);
-      }
+      KiraRepository.setVetVisitsFromCloud(cloudVisits || []);
 
       // 7. Fetch medical documents
       const cloudDocs = await SupabaseCloudRepository.getMedicalDocuments();
-      if (cloudDocs && cloudDocs.length > 0) {
-        KiraRepository.setDocumentsFromCloud(cloudDocs);
-      }
+      KiraRepository.setDocumentsFromCloud(cloudDocs || []);
 
       // 8. Fetch user settings
       const cloudSettings = await SupabaseCloudRepository.getUserSettings();
@@ -189,6 +175,11 @@ export class CloudSyncService {
           low_stock_threshold: med.low_stock_threshold,
         });
         count++;
+      }
+
+      const settings = KiraRepository.getSettings();
+      if (settings) {
+        await SupabaseCloudRepository.updateUserSettings(settings);
       }
 
       return { success: true, count };

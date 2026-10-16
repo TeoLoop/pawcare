@@ -22,6 +22,7 @@ import {
   Cloud,
 } from 'lucide-react';
 import { AuthModal } from '@/components/auth/auth-modal';
+import { PetModal } from '@/components/pet/pet-modal';
 import { CloudSyncService } from '@/lib/supabase/sync-service';
 
 export default function HomePage() {
@@ -31,6 +32,7 @@ export default function HomePage() {
   const [lastSymptom, setLastSymptom] = useState<SymptomLog | null>(null);
   const [nextVetVisit, setNextVetVisit] = useState<VetVisit | null>(null);
   const [isSymptomModalOpen, setIsSymptomModalOpen] = useState(false);
+  const [isPetModalOpen, setIsPetModalOpen] = useState(false);
   const [isTriggeringReminder, setIsTriggeringReminder] = useState(false);
   const [reminderNotification, setReminderNotification] = useState<string | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -147,50 +149,69 @@ export default function HomePage() {
 
       {/* 1. Pet Hero Card */}
       <div className="bg-white rounded-3xl border border-[#E5E1D6] p-6 shadow-xs relative overflow-hidden">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-[#E9EFEA] border-2 border-[#D3DFD7] flex items-center justify-center text-[#3E5A4D] shrink-0 font-bold text-2xl shadow-xs">
-              🐾
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold text-[#222624] tracking-tight">
-                  {pet?.name || 'Kira'}
-                </h1>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#E9EFEA] text-[#274033]">
-                  {pet?.species || 'Canino'}
-                </span>
+        {pet?.name ? (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-2xl bg-[#E9EFEA] border-2 border-[#D3DFD7] flex items-center justify-center text-[#3E5A4D] shrink-0 font-bold text-2xl shadow-xs">
+                🐾
               </div>
-              <p className="text-xs text-[#606763] mt-0.5">
-                {pet?.breed || 'Mestiza'} • {pet?.weight_kg || 24.5} kg • Tratamiento y bienestar diario
-              </p>
-              {pet?.notes && (
-                <p className="text-[11px] text-[#606763] italic mt-1 max-w-xl">
-                  &ldquo;{pet.notes}&rdquo;
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-2xl font-bold text-[#222624] tracking-tight">
+                    {pet.name}
+                  </h1>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#E9EFEA] text-[#274033]">
+                    {pet.species || 'Mascota'}
+                  </span>
+                </div>
+                <p className="text-xs text-[#606763] mt-0.5">
+                  {pet.breed ? `${pet.breed} • ` : ''}{pet.weight_kg ? `${pet.weight_kg} kg • ` : ''}Tratamiento y bienestar diario
                 </p>
-              )}
+                {pet.notes && (
+                  <p className="text-[11px] text-[#606763] italic mt-1 max-w-xl">
+                    &ldquo;{pet.notes}&rdquo;
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsSymptomModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-[#E5E1D6] bg-white hover:bg-[#FAF8F5] text-xs font-semibold text-[#222624] transition-colors shadow-xs"
+              >
+                <Activity className="w-4 h-4 text-[#3E5A4D]" />
+                Anotar Salud
+              </button>
+              <Link
+                href="/medicacion"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#3E5A4D] hover:bg-[#32493E] text-xs font-semibold text-white transition-colors shadow-xs"
+              >
+                <Plus className="w-4 h-4" />
+                Nueva Medicación
+              </Link>
             </div>
           </div>
-
-          {/* Quick Actions */}
-          <div className="flex items-center gap-2.5">
+        ) : (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-xl font-bold text-[#222624]">¡Bienvenido a PawCare!</h1>
+              <p className="text-xs text-[#606763] mt-1">
+                Registrá tu primera mascota para gestionar sus medicamentos, recordatorios de WhatsApp y salud.
+              </p>
+            </div>
             <button
               type="button"
-              onClick={() => setIsSymptomModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-[#E5E1D6] bg-white hover:bg-[#FAF8F5] text-xs font-semibold text-[#222624] transition-colors shadow-xs"
-            >
-              <Activity className="w-4 h-4 text-[#3E5A4D]" />
-              Anotar Salud
-            </button>
-            <Link
-              href="/medicacion"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#3E5A4D] hover:bg-[#32493E] text-xs font-semibold text-white transition-colors shadow-xs"
+              onClick={() => setIsPetModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#3E5A4D] hover:bg-[#32493E] text-xs font-bold text-white transition-colors shadow-xs"
             >
               <Plus className="w-4 h-4" />
-              Nueva Medicación
-            </Link>
+              Registrar Mascota
+            </button>
           </div>
-        </div>
+        )}
 
         {/* Delayed Alert Banner if any */}
         {delayedCount > 0 && (
@@ -357,6 +378,13 @@ export default function HomePage() {
       <SymptomFormModal
         isOpen={isSymptomModalOpen}
         onClose={() => setIsSymptomModalOpen(false)}
+        onSuccess={refreshData}
+      />
+
+      {/* Pet Registration Modal */}
+      <PetModal
+        isOpen={isPetModalOpen}
+        onClose={() => setIsPetModalOpen(false)}
         onSuccess={refreshData}
       />
 

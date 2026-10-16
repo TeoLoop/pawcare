@@ -20,21 +20,29 @@ import {
   Check,
   Cloud,
   RefreshCw,
-  UploadCloud,
   ExternalLink,
+  AlertCircle,
+  LogOut,
+  User as UserIcon,
 } from 'lucide-react';
 import { useTheme } from '@/components/theme/theme-provider';
 import { PetModal } from '@/components/pet/pet-modal';
 import { AuthModal } from '@/components/auth/auth-modal';
 import { CloudSyncService, SyncStatus } from '@/lib/supabase/sync-service';
 import { isLiveSupabaseConfigured } from '@/lib/supabase/client';
+import { SupabaseCloudRepository } from '@/lib/supabase/cloud-repository';
+import { SupabaseAuthService } from '@/lib/supabase/auth-service';
 
 export default function AjustesPage() {
   const { theme, setTheme } = useTheme();
   const [pets, setPets] = useState<Pet[]>([]);
   const [activePet, setActivePet] = useState<Pet | null>(null);
   const [settings, setSettings] = useState<UserSettings | null>(null);
-  const [savedSuccess, setSavedSuccess] = useState(false);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [saveSettingsFeedback, setSaveSettingsFeedback] = useState<{
+    type: 'success' | 'warning' | 'error';
+    message: string;
+  } | null>(null);
   const [isPetModalOpen, setIsPetModalOpen] = useState(false);
   const [petToEdit, setPetToEdit] = useState<Pet | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -43,7 +51,7 @@ export default function AjustesPage() {
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
   // Settings form states
-  const [whatsappPhone, setWhatsappPhone] = useState('+59899123456');
+  const [whatsappPhone, setWhatsappPhone] = useState('');
   const [remindersEnabled, setRemindersEnabled] = useState(true);
   const [advanceMinutes, setAdvanceMinutes] = useState(15);
   const [quietHoursEnabled, setQuietHoursEnabled] = useState(false);
@@ -57,13 +65,34 @@ export default function AjustesPage() {
 
     const s = KiraRepository.getSettings();
     setSettings(s);
-    setWhatsappPhone(s.whatsapp_phone);
+    if (s?.whatsapp_phone) {
+      setWhatsappPhone(s.whatsapp_phone);
+    }
     setRemindersEnabled(s.reminders_enabled);
     setAdvanceMinutes(s.advance_notice_minutes);
     setQuietHoursEnabled(s.quiet_hours_enabled);
     setQuietHoursStart(s.quiet_hours_start || '23:00');
     setQuietHoursEnd(s.quiet_hours_end || '07:00');
     setInventoryAlerts(s.inventory_alerts_enabled);
+
+    // Actively refresh settings from Supabase
+    if (isLiveSupabaseConfigured()) {
+      SupabaseCloudRepository.getUserSettings().then((cloudSettings) => {
+        if (cloudSettings) {
+          KiraRepository.setUserSettingsFromCloud(cloudSettings);
+          setSettings(cloudSettings);
+          if (cloudSettings.whatsapp_phone) {
+            setWhatsappPhone(cloudSettings.whatsapp_phone);
+          }
+          if (typeof cloudSettings.reminders_enabled === 'boolean') {
+            setRemindersEnabled(cloudSettings.reminders_enabled);
+          }
+          if (cloudSettings.advance_notice_minutes) {
+            setAdvanceMinutes(cloudSettings.advance_notice_minutes);
+          }
+        }
+      }).catch(console.warn);
+    }
   };
 
   useEffect(() => {
@@ -71,6 +100,7 @@ export default function AjustesPage() {
 
     CloudSyncService.init().then(() => {
       setSyncStatus(CloudSyncService.getStatus());
+      loadAllData();
     });
 
     const handlePetChange = () => {
@@ -95,17 +125,27 @@ export default function AjustesPage() {
     const res = await CloudSyncService.syncFromCloud();
     setIsSyncing(false);
     if (res.success) {
-      setSyncMessage('Sincronización con Supabase completada.');
+      setSyncMessage('Datos sincronizados correctamente con Supabase.');
       loadAllData();
     } else {
       setSyncMessage(res.error || 'Error al sincronizar con Supabase.');
     }
   };
 
-  const handleSaveSettings = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSignOut = async () => {
+    setIsSyncing(true);
+    await SupabaseAuthService.signOut();
+    KiraRepository.clearAllData();
+    setIsSyncing(false);
+    window.location.href = '/login';
+  };
 
-    KiraRepository.updateSettings({
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingSettings(true);
+    setSaveSettingsFeedback(null);
+
+    const updated = KiraRepository.updateSettings({
       whatsapp_phone: whatsappPhone.trim(),
       reminders_enabled: remindersEnabled,
       advance_notice_minutes: Number(advanceMinutes),
@@ -115,8 +155,36 @@ export default function AjustesPage() {
       inventory_alerts_enabled: inventoryAlerts,
     });
 
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3000);
+    if (isLiveSupabaseConfigured()) {
+      try {
+        const cloudResult = await SupabaseCloudRepository.updateUserSettings(updated);
+        if (cloudResult) {
+          setSaveSettingsFeedback({
+            type: 'success',
+            message: 'Configuración guardada y sincronizada en Supabase con éxito.',
+          });
+          setSyncStatus(CloudSyncService.getStatus());
+        } else {
+          setSaveSettingsFeedback({
+            type: 'warning',
+            message: 'Configuración guardada en este navegador. Para sincronizarla en la nube, iniciá sesión en Supabase arriba.',
+          });
+        }
+      } catch (err: unknown) {
+        setSaveSettingsFeedback({
+          type: 'warning',
+          message: 'Guardado localmente, pero hubo un error de conexión con Supabase.',
+        });
+      }
+    } else {
+      setSaveSettingsFeedback({
+        type: 'success',
+        message: 'Configuración guardada localmente.',
+      });
+    }
+
+    setIsSavingSettings(false);
+    setTimeout(() => setSaveSettingsFeedback(null), 5000);
   };
 
   const handleSelectActivePet = (petId: string) => {
@@ -166,10 +234,22 @@ export default function AjustesPage() {
         </p>
       </div>
 
-      {savedSuccess && (
-        <div className="p-3.5 rounded-2xl bg-[#E9EFEA] border border-[#D3DFD7] text-[#274033] flex items-center gap-2.5 text-xs font-semibold animate-in fade-in">
-          <CheckCircle2 className="w-4 h-4 text-[#357A57]" />
-          Configuración guardada correctamente
+      {saveSettingsFeedback && (
+        <div
+          className={`p-3.5 rounded-2xl border flex items-center gap-2.5 text-xs font-semibold animate-in fade-in ${
+            saveSettingsFeedback.type === 'error'
+              ? 'bg-rose-50 border-rose-200 text-rose-850 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-300'
+              : saveSettingsFeedback.type === 'warning'
+              ? 'bg-amber-50 border-amber-200 text-amber-900 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300'
+              : 'bg-[#E9EFEA] border-[#D3DFD7] text-[#274033] dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300'
+          }`}
+        >
+          {saveSettingsFeedback.type === 'error' || saveSettingsFeedback.type === 'warning' ? (
+            <AlertCircle className={`w-4 h-4 shrink-0 ${saveSettingsFeedback.type === 'error' ? 'text-rose-600' : 'text-amber-600'}`} />
+          ) : (
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-[#357A57]" />
+          )}
+          <span>{saveSettingsFeedback.message}</span>
         </div>
       )}
 
@@ -290,97 +370,91 @@ export default function AjustesPage() {
         </div>
       </div>
 
-      {/* 2. Persistencia en la Nube (Supabase PostgreSQL) */}
+      {/* 2. Mi Cuenta y Nube (Supabase) */}
       <div className="bg-white dark:bg-stone-900 rounded-2xl border border-[#E5E1D6] dark:border-stone-800 p-5 shadow-xs space-y-4">
         <div className="flex items-center justify-between pb-3 border-b border-[#EFECE5] dark:border-stone-800">
           <div className="flex items-center gap-2.5">
-            <Cloud
-              className={`w-5 h-5 ${
-                syncStatus.isConfigured && syncStatus.isAuthenticated
-                  ? 'text-[#357A57]'
-                  : syncStatus.isConfigured
-                  ? 'text-amber-600'
-                  : 'text-stone-400'
-              }`}
-            />
+            <div className="w-9 h-9 rounded-xl bg-[#E9EFEA] dark:bg-emerald-950/40 flex items-center justify-center text-[#3E5A4D] dark:text-emerald-400">
+              <Cloud className="w-5 h-5" />
+            </div>
             <div>
               <h2 className="text-sm font-bold text-[#222624] dark:text-stone-100">
-                Base de Datos y Nube (Supabase)
+                Mi Cuenta & Base de Datos
               </h2>
               <p className="text-[11px] text-[#606763] dark:text-stone-400">
-                Persistencia real en PostgreSQL con Row Level Security (RLS)
+                Conectado con Supabase PostgreSQL y sincronización en tiempo real
               </p>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setIsAuthModalOpen(true)}
-            className="px-3.5 py-1.5 rounded-xl bg-sage-600 hover:bg-sage-700 text-white text-xs font-semibold transition-colors shadow-xs"
-          >
-            {syncStatus.isAuthenticated ? 'Gestionar Sesión' : 'Iniciar Sesión / Nube'}
-          </button>
+          {syncStatus.isAuthenticated && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-[#E9EFEA] text-[#274033] border border-[#D3DFD7] dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300">
+              <span className="w-2 h-2 rounded-full bg-[#357A57] animate-pulse" />
+              Nube conectada
+            </span>
+          )}
         </div>
 
         {syncMessage && (
-          <div className="p-3 bg-[#E9EFEA] dark:bg-emerald-950/40 border border-[#D3DFD7] dark:border-emerald-800 rounded-xl text-xs font-semibold text-[#274033] dark:text-emerald-300">
+          <div className="p-3 bg-[#E9EFEA] dark:bg-emerald-950/40 border border-[#D3DFD7] dark:border-emerald-800 rounded-xl text-xs font-semibold text-[#274033] dark:text-emerald-300 animate-in fade-in">
             {syncMessage}
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="p-3 bg-[#FAF8F5] dark:bg-stone-800/60 rounded-xl border border-[#E5E1D6] dark:border-stone-700">
-            <span className="text-[10px] uppercase font-bold text-[#606763] dark:text-stone-400 block">
-              Configuración .env
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="p-3.5 bg-[#FAF8F5] dark:bg-stone-800/60 rounded-xl border border-[#E5E1D6] dark:border-stone-700">
+            <span className="text-[10px] uppercase font-bold text-[#606763] dark:text-stone-400 block tracking-wider">
+              Usuario de Supabase
             </span>
-            <span
-              className={`text-xs font-bold mt-1 inline-flex items-center gap-1 ${
-                syncStatus.isConfigured ? 'text-[#357A57]' : 'text-stone-500'
-              }`}
-            >
-              {syncStatus.isConfigured ? 'Detectada' : 'Modo local (mock)'}
-            </span>
+            <div className="flex items-center gap-2 mt-1">
+              <UserIcon className="w-3.5 h-3.5 text-[#3E5A4D] dark:text-emerald-400" />
+              <span className="text-xs font-bold text-[#222624] dark:text-stone-100 truncate">
+                {syncStatus.isAuthenticated ? syncStatus.userEmail : 'Sesión no iniciada'}
+              </span>
+            </div>
           </div>
 
-          <div className="p-3 bg-[#FAF8F5] dark:bg-stone-800/60 rounded-xl border border-[#E5E1D6] dark:border-stone-700">
-            <span className="text-[10px] uppercase font-bold text-[#606763] dark:text-stone-400 block">
-              Estado de Sesión
-            </span>
-            <span
-              className={`text-xs font-bold mt-1 inline-flex items-center gap-1 ${
-                syncStatus.isAuthenticated ? 'text-[#357A57]' : 'text-amber-600 dark:text-amber-400'
-              }`}
-            >
-              {syncStatus.isAuthenticated ? syncStatus.userEmail : 'No iniciada'}
-            </span>
-          </div>
-
-          <div className="p-3 bg-[#FAF8F5] dark:bg-stone-800/60 rounded-xl border border-[#E5E1D6] dark:border-stone-700">
-            <span className="text-[10px] uppercase font-bold text-[#606763] dark:text-stone-400 block">
+          <div className="p-3.5 bg-[#FAF8F5] dark:bg-stone-800/60 rounded-xl border border-[#E5E1D6] dark:border-stone-700">
+            <span className="text-[10px] uppercase font-bold text-[#606763] dark:text-stone-400 block tracking-wider">
               Última Sincronización
             </span>
             <span className="text-xs font-bold text-[#222624] dark:text-stone-200 mt-1 block">
               {syncStatus.lastSyncedAt
-                ? new Date(syncStatus.lastSyncedAt).toLocaleTimeString('es-UY')
-                : 'Pendiente'}
+                ? new Date(syncStatus.lastSyncedAt).toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+                : 'Sincronizado'}
             </span>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 pt-1">
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-[#EFECE5] dark:border-stone-800">
           <button
             type="button"
             onClick={handleSyncCloud}
-            disabled={isSyncing || !syncStatus.isConfigured}
-            className="flex items-center gap-2 px-3 py-2 bg-[#FAF8F5] dark:bg-stone-800 hover:bg-[#EFECE5] dark:hover:bg-stone-700 border border-[#E5E1D6] dark:border-stone-700 rounded-xl text-xs font-semibold text-[#222624] dark:text-stone-200 transition-colors disabled:opacity-50"
+            disabled={isSyncing}
+            className="flex items-center gap-2 px-3.5 py-2 bg-[#FAF8F5] dark:bg-stone-800 hover:bg-[#EFECE5] dark:hover:bg-stone-700 border border-[#E5E1D6] dark:border-stone-700 rounded-xl text-xs font-semibold text-[#222624] dark:text-stone-200 transition-colors disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-            Sincronizar ahora con Supabase
+            Sincronizar ahora
           </button>
 
-          <span className="text-[11px] text-[#606763] dark:text-stone-400">
-            Migración SQL disponible en: <code className="font-mono bg-stone-100 dark:bg-stone-800 px-1 py-0.5 rounded">supabase/pawcare_complete_setup.sql</code>
-          </span>
+          {syncStatus.isAuthenticated ? (
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              Cerrar sesión
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => { window.location.href = '/login'; }}
+              className="flex items-center gap-1.5 px-4 py-2 bg-[#3E5A4D] hover:bg-[#32493E] text-white rounded-xl text-xs font-semibold transition-colors shadow-xs"
+            >
+              Iniciar sesión
+            </button>
+          )}
         </div>
       </div>
 
@@ -552,9 +626,11 @@ export default function AjustesPage() {
         <div className="flex justify-end">
           <button
             type="submit"
-            className="px-6 py-2.5 rounded-xl bg-[#3E5A4D] hover:bg-[#32493E] text-white text-xs font-semibold shadow-xs transition-colors"
+            disabled={isSavingSettings}
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#3E5A4D] hover:bg-[#32493E] text-white text-xs font-semibold shadow-xs transition-colors disabled:opacity-50"
           >
-            Guardar Ajustes
+            {isSavingSettings && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+            {isSavingSettings ? 'Guardando en Supabase...' : 'Guardar Ajustes'}
           </button>
         </div>
       </form>

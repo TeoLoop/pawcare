@@ -1,11 +1,17 @@
 // src/lib/supabase/client.ts
 import { createBrowserClient } from '@supabase/ssr';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
-export function createClient() {
+let clientInstance: SupabaseClient | null = null;
+
+export function createClient(): SupabaseClient {
+  if (clientInstance) return clientInstance;
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321';
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'dev-anon-key-placeholder';
 
-  return createBrowserClient(supabaseUrl, supabaseAnonKey);
+  clientInstance = createBrowserClient(supabaseUrl, supabaseAnonKey);
+  return clientInstance;
 }
 
 export const isLiveSupabaseConfigured = (): boolean => {
@@ -14,7 +20,6 @@ export const isLiveSupabaseConfigured = (): boolean => {
   return Boolean(
     url &&
     key &&
-    !url.includes('localhost') &&
     !url.includes('your-project') &&
     key !== 'dev-anon-key-placeholder'
   );
