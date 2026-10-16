@@ -1,6 +1,6 @@
 // src/lib/supabase/cloud-repository.ts
 import { createClient, isLiveSupabaseConfigured } from './client';
-import { Pet, Medication, ScheduledDose, DoseLog, DoseStatus } from '@/types/medication';
+import { Pet, Medication, MedicationSchedule, ScheduledDose, DoseLog, DoseStatus } from '@/types/medication';
 import { SymptomLog } from '@/types/health';
 import { VetVisit, MedicalDocument } from '@/types/veterinary';
 import { UserSettings } from '@/types/settings';
@@ -113,16 +113,38 @@ export class SupabaseCloudRepository {
       query = query.eq('pet_id', petId);
     }
 
-    const { data, error } = await query.order('name', { ascending: true });
-    if (error) {
-      console.error('[SupabaseCloud] Error fetching medications:', error.message);
+    const { data: meds, error } = await query.order('name', { ascending: true });
+    if (error || !meds) {
+      console.error('[SupabaseCloud] Error fetching medications:', error?.message);
       return [];
     }
-    return data as Medication[];
+
+    // Fetch and attach schedules
+    const medIds = meds.map((m) => m.id);
+    if (medIds.length > 0) {
+      const { data: schedules } = await this.supabase
+        .from('medication_schedules')
+        .select('*')
+        .in('medication_id', medIds);
+
+      if (schedules && schedules.length > 0) {
+        const scheduleMap = new Map<string, MedicationSchedule>();
+        for (const s of schedules) {
+          scheduleMap.set(s.medication_id, s as MedicationSchedule);
+        }
+        for (const m of meds) {
+          if (scheduleMap.has(m.id)) {
+            m.schedule = scheduleMap.get(m.id);
+          }
+        }
+      }
+    }
+
+    return meds as Medication[];
   }
 
   static async addMedication(
-    med: Omit<Medication, 'id' | 'created_at' | 'updated_at'> & { id?: string }
+    med: Omit<Medication, 'id' | 'created_at' | 'updated_at'> & { id?: string; schedule?: MedicationSchedule }
   ): Promise<Medication | null> {
     if (!isLiveSupabaseConfigured()) return null;
 
@@ -162,11 +184,37 @@ export class SupabaseCloudRepository {
       .select()
       .single();
 
-    if (error) {
-      console.error('[SupabaseCloud] Error inserting medication:', error.message);
+    if (error || !data) {
+      console.error('[SupabaseCloud] Error inserting medication:', error?.message);
       return null;
     }
-    return data as Medication;
+
+    const insertedMed = data as Medication;
+
+    // Insert schedule if provided
+    if (med.schedule) {
+      const schedulePayload = {
+        medication_id: insertedMed.id,
+        frequency_type: med.schedule.frequency_type || 'daily',
+        times_of_day: med.schedule.times_of_day || ['08:00'],
+        days_of_week: med.schedule.days_of_week || null,
+        start_date: med.schedule.start_date || new Date().toISOString().split('T')[0],
+        end_date: med.schedule.end_date || null,
+        is_active: med.schedule.is_active ?? true,
+      };
+
+      const { data: schedData, error: schedError } = await this.supabase
+        .from('medication_schedules')
+        .insert(schedulePayload)
+        .select()
+        .single();
+
+      if (!schedError && schedData) {
+        insertedMed.schedule = schedData as MedicationSchedule;
+      }
+    }
+
+    return insertedMed;
   }
 
   static async updateMedication(id: string, updates: Partial<Medication>): Promise<Medication | null> {
@@ -192,11 +240,49 @@ export class SupabaseCloudRepository {
       .select()
       .single();
 
-    if (error) {
-      console.error('[SupabaseCloud] Error updating medication:', error.message);
+    if (error || !data) {
+      console.error('[SupabaseCloud] Error updating medication:', error?.message);
       return null;
     }
-    return data as Medication;
+
+    const updatedMed = data as Medication;
+
+    if (updates.schedule) {
+      const schedulePayload = {
+        medication_id: id,
+        frequency_type: updates.schedule.frequency_type || 'daily',
+        times_of_day: updates.schedule.times_of_day || ['08:00'],
+        days_of_week: updates.schedule.days_of_week || null,
+        start_date: updates.schedule.start_date || new Date().toISOString().split('T')[0],
+        end_date: updates.schedule.end_date || null,
+        is_active: updates.schedule.is_active ?? true,
+      };
+
+      const { data: existingSched } = await this.supabase
+        .from('medication_schedules')
+        .select('id')
+        .eq('medication_id', id)
+        .limit(1);
+
+      if (existingSched && existingSched.length > 0) {
+        const { data: s } = await this.supabase
+          .from('medication_schedules')
+          .update(schedulePayload)
+          .eq('id', existingSched[0].id)
+          .select()
+          .single();
+        if (s) updatedMed.schedule = s as MedicationSchedule;
+      } else {
+        const { data: s } = await this.supabase
+          .from('medication_schedules')
+          .insert(schedulePayload)
+          .select()
+          .single();
+        if (s) updatedMed.schedule = s as MedicationSchedule;
+      }
+    }
+
+    return updatedMed;
   }
 
   // --- SCHEDULED DOSES ---
@@ -206,12 +292,31 @@ export class SupabaseCloudRepository {
     if (petId && isUuid(petId)) {
       query = query.eq('pet_id', petId);
     }
-    const { data, error } = await query.order('scheduled_for', { ascending: true });
-    if (error) {
-      console.error('[SupabaseCloud] Error fetching doses:', error.message);
+    const { data: doses, error } = await query.order('scheduled_for', { ascending: true });
+    if (error || !doses) {
+      console.error('[SupabaseCloud] Error fetching doses:', error?.message);
       return [];
     }
-    return data as ScheduledDose[];
+
+    const medIds = Array.from(new Set(doses.map((d) => d.medication_id).filter(Boolean)));
+    if (medIds.length > 0) {
+      const { data: meds } = await this.supabase
+        .from('medications')
+        .select('*')
+        .in('id', medIds);
+
+      if (meds) {
+        const medMap = new Map<string, Medication>();
+        for (const m of meds) {
+          medMap.set(m.id, m as Medication);
+        }
+        for (const d of doses) {
+          d.medication = medMap.get(d.medication_id);
+        }
+      }
+    }
+
+    return doses as ScheduledDose[];
   }
 
   static async updateDoseStatus(id: string, status: DoseStatus): Promise<boolean> {

@@ -2,11 +2,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { KiraRepository } from '@/lib/storage/repository';
-import { Medication } from '@/types/medication';
+import { Medication, ScheduledDose } from '@/types/medication';
 import { StockForecast } from '@/types/inventory';
 import { MedicationModal } from '@/components/medication/medication-modal';
 import { RestockModal } from '@/components/medication/restock-modal';
+import { DoseActionModal } from '@/components/dashboard/dose-action-modal';
 import {
   Pill,
   Plus,
@@ -17,11 +19,15 @@ import {
   Pause,
   Edit2,
   Trash2,
+  CheckCircle2,
+  ArrowRight,
 } from 'lucide-react';
 
 export default function MedicacionPage() {
   const [medications, setMedications] = useState<Medication[]>([]);
   const [forecasts, setForecasts] = useState<StockForecast[]>([]);
+  const [todayDoses, setTodayDoses] = useState<ScheduledDose[]>([]);
+  const [selectedDose, setSelectedDose] = useState<ScheduledDose | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [medToEdit, setMedToEdit] = useState<Medication | null>(null);
   const [restockMed, setRestockMed] = useState<Medication | null>(null);
@@ -31,6 +37,7 @@ export default function MedicacionPage() {
     const meds = KiraRepository.getMedications();
     setMedications([...meds]);
     setForecasts(KiraRepository.getStockForecasts());
+    setTodayDoses(KiraRepository.getScheduledDoses());
   };
 
   useEffect(() => {
@@ -126,6 +133,30 @@ export default function MedicacionPage() {
           </div>
         </div>
       )}
+
+      {/* Quick link to Tomas de Hoy */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-[#F4F8F5] dark:bg-emerald-950/25 border border-[#D3DFD7] dark:border-emerald-900/40">
+        <div className="flex items-start sm:items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-[#E9EFEA] dark:bg-emerald-950/50 text-[#3E5A4D] dark:text-emerald-400 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
+            <CheckCircle2 className="w-5 h-5 text-[#357A57] dark:text-emerald-400" />
+          </div>
+          <div>
+            <h4 className="text-xs sm:text-sm font-bold text-[#222624] dark:text-stone-100">
+              ¿Dónde se marca el check de las tomas?
+            </h4>
+            <p className="text-[11px] sm:text-xs text-[#606763] dark:text-stone-400">
+              Podés registrar tomas de hoy directamente en cada tarjeta abajo o desde la pantalla de Inicio en <strong>Tomas de Hoy</strong>.
+            </p>
+          </div>
+        </div>
+        <Link
+          href="/"
+          className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#3E5A4D] hover:bg-[#32493E] text-white text-xs font-semibold shrink-0 transition-colors shadow-2xs"
+        >
+          <span>Ir a Tomas de Hoy</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </Link>
+      </div>
 
       {/* Filter Segmented Control */}
       <div className="w-full sm:w-fit grid grid-cols-3 sm:flex items-center gap-1 p-1 rounded-2xl bg-white dark:bg-stone-900 border border-[#E5E1D6] dark:border-stone-800 shadow-2xs">
@@ -260,6 +291,59 @@ export default function MedicacionPage() {
                       </button>
                     </div>
                   )}
+
+                  {/* Today's Scheduled Dose Quick Action */}
+                  {(() => {
+                    const medDosesToday = todayDoses.filter((d) => d.medication_id === med.id);
+                    if (medDosesToday.length === 0) return null;
+                    return (
+                      <div className="p-3 rounded-xl bg-[#FAF8F5] dark:bg-stone-800/60 border border-[#EFECE5] dark:border-stone-700/80 mb-3 space-y-2">
+                        <div className="flex items-center justify-between text-xs font-semibold text-[#222624] dark:text-stone-200">
+                          <span className="flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5 text-[#3E5A4D] dark:text-emerald-400" />
+                            Tomas de hoy
+                          </span>
+                          <span className="text-[11px] text-[#606763] dark:text-stone-400 font-normal">
+                            {medDosesToday.length === 1 ? '1 horario' : `${medDosesToday.length} horarios`}
+                          </span>
+                        </div>
+                        <div className="space-y-1.5">
+                          {medDosesToday.map((dose) => {
+                            const isActionable = dose.status === 'scheduled' || dose.status === 'pending' || dose.status === 'delayed';
+                            return (
+                              <div key={dose.id} className="flex items-center justify-between gap-2 text-xs">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-[#222624] dark:text-stone-100">{dose.scheduled_time} hs</span>
+                                  {dose.status === 'delayed' && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#FFF5E6] text-[#8A5300] border border-[#FFE0B2]">
+                                      Retrasada
+                                    </span>
+                                  )}
+                                </div>
+                                {dose.status === 'administered' ? (
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full">
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> Administrada
+                                  </span>
+                                ) : isActionable ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedDose(dose)}
+                                    className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-[#3E5A4D] hover:bg-[#32493E] text-white text-[11px] font-semibold transition-all shadow-2xs"
+                                  >
+                                    Registrar toma
+                                  </button>
+                                ) : (
+                                  <span className="text-[11px] text-[#606763] dark:text-stone-400 capitalize">
+                                    {dose.status}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Card Actions */}
@@ -324,6 +408,14 @@ export default function MedicacionPage() {
         medication={restockMed}
         isOpen={Boolean(restockMed)}
         onClose={() => setRestockMed(null)}
+        onSuccess={loadData}
+      />
+
+      {/* Dose Action Modal */}
+      <DoseActionModal
+        dose={selectedDose}
+        isOpen={Boolean(selectedDose)}
+        onClose={() => setSelectedDose(null)}
         onSuccess={loadData}
       />
     </div>

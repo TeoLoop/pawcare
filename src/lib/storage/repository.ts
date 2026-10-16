@@ -921,6 +921,11 @@ export class KiraRepository {
   static setScheduledDosesFromCloud(doses: ScheduledDose[]): void {
     this.init();
     memoryState.scheduledDoses = doses || [];
+    for (const med of memoryState.medications) {
+      if (med.is_active && med.schedule && med.schedule.is_active) {
+        this.generateUpcomingDosesForMedication(med);
+      }
+    }
     saveToStorage(STORAGE_KEYS.DOSES, memoryState.scheduledDoses);
   }
 
