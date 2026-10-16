@@ -41,7 +41,8 @@ export class SupabaseAuthService {
   static async signUpWithEmail(
     email: string,
     password: string,
-    fullName?: string
+    fullName?: string,
+    username?: string
   ): Promise<{ user: User | null; error: string | null }> {
     if (!isLiveSupabaseConfigured()) {
       return { user: null, error: 'Supabase no está configurado en las variables de entorno.' };
@@ -52,7 +53,7 @@ export class SupabaseAuthService {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, fullName }),
+        body: JSON.stringify({ email, password, fullName, username }),
       });
 
       const json = await res.json();
@@ -69,12 +70,33 @@ export class SupabaseAuthService {
     }
   }
 
-  static async signInWithEmail(email: string, password: string): Promise<{ user: User | null; error: string | null }> {
+  static async signInWithEmail(
+    identifier: string,
+    password: string
+  ): Promise<{ user: User | null; error: string | null }> {
     if (!isLiveSupabaseConfigured()) {
       return { user: null, error: 'Supabase no está configurado en las variables de entorno.' };
     }
+
+    let resolvedEmail = identifier.trim();
+    if (!resolvedEmail.includes('@')) {
+      try {
+        const res = await fetch('/api/auth/resolve-identifier', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identifier: resolvedEmail }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.email) resolvedEmail = data.email;
+        }
+      } catch (err) {
+        console.warn('Error resolving identifier to email:', err);
+      }
+    }
+
     const { data, error } = await this.supabase.auth.signInWithPassword({
-      email,
+      email: resolvedEmail,
       password,
     });
 

@@ -501,16 +501,6 @@ export default function AjustesPage() {
               <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
               Sincronizar ahora
             </button>
-
-            <button
-              type="button"
-              onClick={handleClearLocalData}
-              className="flex items-center gap-1.5 px-3 py-2 bg-stone-50 dark:bg-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700 border border-stone-200 dark:border-stone-700 rounded-xl text-xs font-medium text-stone-600 dark:text-stone-300 transition-colors"
-              title="Restablece la memoria local de este navegador"
-            >
-              <Trash2 className="w-3.5 h-3.5 text-stone-400" />
-              Restablecer local
-            </button>
           </div>
 
           {syncStatus.isAuthenticated ? (

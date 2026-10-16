@@ -47,17 +47,17 @@ const STORAGE_KEYS = {
 
 // Memory store fallback for SSR
 class AppState {
-  pets: Pet[] = [...INITIAL_PETS];
-  activePetId: string = INITIAL_PET.id;
+  pets: Pet[] = [];
+  activePetId: string = '';
   settings: UserSettings = { ...INITIAL_SETTINGS };
-  medications: Medication[] = [...INITIAL_MEDICATIONS];
-  scheduledDoses: ScheduledDose[] = buildInitialScheduledDoses();
+  medications: Medication[] = [];
+  scheduledDoses: ScheduledDose[] = [];
   doseLogs: DoseLog[] = [];
-  symptoms: SymptomLog[] = [...INITIAL_SYMPTOMS];
+  symptoms: SymptomLog[] = [];
   weightLogs: WeightLog[] = [];
   inventoryEvents: InventoryEvent[] = [];
-  vetVisits: VetVisit[] = [...INITIAL_VET_VISITS];
-  documents: MedicalDocument[] = [...INITIAL_DOCUMENTS];
+  vetVisits: VetVisit[] = [];
+  documents: MedicalDocument[] = [];
   notifications: NotificationJob[] = [];
   notificationAttempts: NotificationAttempt[] = [];
   initialized = false;
@@ -107,28 +107,23 @@ function saveToStorage<T>(key: string, value: T): void {
 export class KiraRepository {
   private static init() {
     if (isClient() && !memoryState.initialized) {
-      memoryState.pets = loadFromStorage(STORAGE_KEYS.PETS, memoryState.pets);
-      // Migration from single-pet key if found
-      const legacyPet = loadFromStorage<Pet | null>('kira_pet', null);
-      if (legacyPet && !memoryState.pets.some((p) => p.id === legacyPet.id)) {
-        memoryState.pets.push(legacyPet);
-      }
+      memoryState.pets = loadFromStorage(STORAGE_KEYS.PETS, []);
       memoryState.activePetId = loadFromStorage(
         STORAGE_KEYS.ACTIVE_PET_ID,
-        memoryState.pets[0]?.id || INITIAL_PET.id
+        memoryState.pets[0]?.id || ''
       );
 
       memoryState.settings = loadFromStorage(STORAGE_KEYS.SETTINGS, memoryState.settings);
-      memoryState.medications = loadFromStorage(STORAGE_KEYS.MEDICATIONS, memoryState.medications);
-      memoryState.scheduledDoses = loadFromStorage(STORAGE_KEYS.DOSES, memoryState.scheduledDoses);
-      memoryState.doseLogs = loadFromStorage(STORAGE_KEYS.DOSE_LOGS, memoryState.doseLogs);
-      memoryState.symptoms = loadFromStorage(STORAGE_KEYS.SYMPTOMS, memoryState.symptoms);
-      memoryState.weightLogs = loadFromStorage(STORAGE_KEYS.WEIGHT_LOGS, memoryState.weightLogs);
-      memoryState.inventoryEvents = loadFromStorage(STORAGE_KEYS.INVENTORY_EVENTS, memoryState.inventoryEvents);
-      memoryState.vetVisits = loadFromStorage(STORAGE_KEYS.VET_VISITS, memoryState.vetVisits);
-      memoryState.documents = loadFromStorage(STORAGE_KEYS.DOCUMENTS, memoryState.documents);
-      memoryState.notifications = loadFromStorage(STORAGE_KEYS.NOTIFICATIONS, memoryState.notifications);
-      memoryState.notificationAttempts = loadFromStorage(STORAGE_KEYS.NOTIFICATION_ATTEMPTS, memoryState.notificationAttempts);
+      memoryState.medications = loadFromStorage(STORAGE_KEYS.MEDICATIONS, []);
+      memoryState.scheduledDoses = loadFromStorage(STORAGE_KEYS.DOSES, []);
+      memoryState.doseLogs = loadFromStorage(STORAGE_KEYS.DOSE_LOGS, []);
+      memoryState.symptoms = loadFromStorage(STORAGE_KEYS.SYMPTOMS, []);
+      memoryState.weightLogs = loadFromStorage(STORAGE_KEYS.WEIGHT_LOGS, []);
+      memoryState.inventoryEvents = loadFromStorage(STORAGE_KEYS.INVENTORY_EVENTS, []);
+      memoryState.vetVisits = loadFromStorage(STORAGE_KEYS.VET_VISITS, []);
+      memoryState.documents = loadFromStorage(STORAGE_KEYS.DOCUMENTS, []);
+      memoryState.notifications = loadFromStorage(STORAGE_KEYS.NOTIFICATIONS, []);
+      memoryState.notificationAttempts = loadFromStorage(STORAGE_KEYS.NOTIFICATION_ATTEMPTS, []);
 
       // Auto-initialize initial weight log from pet's current weight if empty
       if (memoryState.weightLogs.length === 0 && memoryState.pets.length > 0) {
@@ -184,7 +179,17 @@ export class KiraRepository {
   static getActivePet(): Pet {
     this.init();
     const found = memoryState.pets.find((p) => p.id === memoryState.activePetId);
-    return found || memoryState.pets[0] || { ...INITIAL_PET };
+    return (
+      found ||
+      memoryState.pets[0] || {
+        id: '',
+        owner_id: '',
+        name: '',
+        species: '',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+    );
   }
 
   static getPet(id?: string): Pet {
@@ -530,9 +535,19 @@ export class KiraRepository {
     }
   }
 
+  static ensureUpcomingDoses(days: number = 7) {
+    this.init();
+    for (const med of memoryState.medications) {
+      if (med.is_active && med.schedule && med.schedule.is_active) {
+        this.generateUpcomingDosesForMedication(med, days);
+      }
+    }
+  }
+
   // --- SCHEDULED DOSES & ACTIONS ---
   static getScheduledDoses(date?: string | 'all', petId?: string): ScheduledDose[] {
     this.init();
+    this.ensureUpcomingDoses(3);
     const targetDate = date === undefined ? getLocalDateString() : date;
     const targetPetId = petId || memoryState.activePetId;
     

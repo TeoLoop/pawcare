@@ -8,6 +8,7 @@ import { KiraRepository } from '@/lib/storage/repository';
 import { getLocalDateString } from '@/lib/date-utils';
 import { isLiveSupabaseConfigured } from '@/lib/supabase/client';
 import { SupabaseCloudRepository } from '@/lib/supabase/cloud-repository';
+import { compressImageIfNeeded } from '@/lib/image-compress';
 import { UploadCloud, FileText, AlertCircle, Camera, Image as ImageIcon } from 'lucide-react';
 
 interface DocumentModalProps {
@@ -108,9 +109,10 @@ export function DocumentModal({ isOpen, onClose, onSuccess }: DocumentModalProps
     try {
       let finalUrl = fileUrl;
 
-      // Upload file directly to Supabase Cloud Storage
+      // Upload file directly to Supabase Cloud Storage (compressed if photo)
       if (selectedFile && isLiveSupabaseConfigured()) {
-        const uploadRes = await SupabaseCloudRepository.uploadMediaFile(selectedFile, 'documents');
+        const fileToUpload = await compressImageIfNeeded(selectedFile);
+        const uploadRes = await SupabaseCloudRepository.uploadMediaFile(fileToUpload, 'documents');
         if (uploadRes?.publicUrl) {
           finalUrl = uploadRes.publicUrl;
         }

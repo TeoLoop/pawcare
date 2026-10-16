@@ -20,9 +20,10 @@ interface AuthModalProps {
 export function AuthModal({ isOpen, onClose, onSuccess, initialTab = 'signin' }: AuthModalProps) {
   const router = useRouter();
   const [tab, setTab] = useState<'signin' | 'signup'>(initialTab);
+  const [identifier, setIdentifier] = useState('');
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -45,13 +46,13 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialTab = 'signin' }:
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) return;
+    if (!identifier || !password) return;
 
     setLoading(true);
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    const res = await SupabaseAuthService.signInWithEmail(email, password);
+    const res = await SupabaseAuthService.signInWithEmail(identifier.trim(), password);
     setLoading(false);
 
     if (res.error) {
@@ -76,7 +77,12 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialTab = 'signin' }:
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    const res = await SupabaseAuthService.signUpWithEmail(email, password, fullName);
+    const res = await SupabaseAuthService.signUpWithEmail(
+      email.trim(),
+      password,
+      username.trim(),
+      username.trim()
+    );
     setLoading(false);
 
     if (res.error) {
@@ -272,16 +278,16 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialTab = 'signin' }:
               <form onSubmit={handleSignIn} className="space-y-4 pt-1">
                 <div>
                   <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300 mb-1.5">
-                    Correo electrónico
+                    Usuario o Correo electrónico
                   </label>
                   <div className="relative">
-                    <Mail className="w-4 h-4 absolute left-3.5 top-3 text-stone-400" />
+                    <UserIcon className="w-4 h-4 absolute left-3.5 top-3 text-stone-400" />
                     <input
-                      type="email"
+                      type="text"
                       required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="tu@correo.com"
+                      value={identifier}
+                      onChange={(e) => setIdentifier(e.target.value)}
+                      placeholder="tu_usuario o tu@correo.com"
                       className="w-full pl-10 pr-3.5 py-2.5 bg-[#FAF8F5] dark:bg-stone-800 border border-[#E5E1D6] dark:border-stone-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3E5A4D]"
                     />
                   </div>
@@ -326,16 +332,16 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialTab = 'signin' }:
               <form onSubmit={handleSignUp} className="space-y-4 pt-1">
                 <div>
                   <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300 mb-1.5">
-                    Tu nombre o nombre del tutor
+                    Nombre de Usuario
                   </label>
                   <div className="relative">
                     <UserIcon className="w-4 h-4 absolute left-3.5 top-3 text-stone-400" />
                     <input
                       type="text"
                       required
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      placeholder="Ej. Mateo"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="Ej. mateo o kira_tutor"
                       className="w-full pl-10 pr-3.5 py-2.5 bg-[#FAF8F5] dark:bg-stone-800 border border-[#E5E1D6] dark:border-stone-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3E5A4D]"
                     />
                   </div>

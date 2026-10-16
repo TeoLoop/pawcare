@@ -5,6 +5,8 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { formatDoseAmount } from '@/lib/utils';
 import { KiraRepository } from '@/lib/storage/repository';
+import { getLocalDateString } from '@/lib/date-utils';
+import { addDays } from 'date-fns';
 import { Medication, ScheduledDose } from '@/types/medication';
 import { StockForecast } from '@/types/inventory';
 import { MedicationModal } from '@/components/medication/medication-modal';
@@ -22,12 +24,14 @@ import {
   Trash2,
   CheckCircle2,
   ArrowRight,
+  Calendar,
 } from 'lucide-react';
 
 export default function MedicacionPage() {
   const [medications, setMedications] = useState<Medication[]>([]);
   const [forecasts, setForecasts] = useState<StockForecast[]>([]);
   const [todayDoses, setTodayDoses] = useState<ScheduledDose[]>([]);
+  const [tomorrowDoses, setTomorrowDoses] = useState<ScheduledDose[]>([]);
   const [selectedDose, setSelectedDose] = useState<ScheduledDose | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [medToEdit, setMedToEdit] = useState<Medication | null>(null);
@@ -38,7 +42,12 @@ export default function MedicacionPage() {
     const meds = KiraRepository.getMedications();
     setMedications([...meds]);
     setForecasts(KiraRepository.getStockForecasts());
-    setTodayDoses(KiraRepository.getScheduledDoses());
+
+    const todayStr = getLocalDateString();
+    const tomorrowStr = getLocalDateString(addDays(new Date(), 1));
+
+    setTodayDoses(KiraRepository.getScheduledDoses(todayStr));
+    setTomorrowDoses(KiraRepository.getScheduledDoses(tomorrowStr));
   };
 
   useEffect(() => {
@@ -293,54 +302,112 @@ export default function MedicacionPage() {
                     </div>
                   )}
 
-                  {/* Today's Scheduled Dose Quick Action */}
+                  {/* Today & Tomorrow Scheduled Doses */}
                   {(() => {
                     const medDosesToday = todayDoses.filter((d) => d.medication_id === med.id);
-                    if (medDosesToday.length === 0) return null;
+                    const medDosesTomorrow = tomorrowDoses.filter((d) => d.medication_id === med.id);
+
+                    if (medDosesToday.length === 0 && medDosesTomorrow.length === 0) return null;
+
                     return (
-                      <div className="p-3 rounded-xl bg-[#FAF8F5] dark:bg-stone-800/60 border border-[#EFECE5] dark:border-stone-700/80 mb-3 space-y-2">
-                        <div className="flex items-center justify-between text-xs font-semibold text-[#222624] dark:text-stone-200">
-                          <span className="flex items-center gap-1.5">
-                            <Clock className="w-3.5 h-3.5 text-[#3E5A4D] dark:text-emerald-400" />
-                            Tomas de hoy
-                          </span>
-                          <span className="text-[11px] text-[#606763] dark:text-stone-400 font-normal">
-                            {medDosesToday.length === 1 ? '1 horario' : `${medDosesToday.length} horarios`}
-                          </span>
+                      <div className="p-3 rounded-xl bg-[#FAF8F5] dark:bg-stone-800/60 border border-[#EFECE5] dark:border-stone-700/80 mb-3 space-y-3">
+                        {/* Section: Hoy */}
+                        <div>
+                          <div className="flex items-center justify-between text-xs font-semibold text-[#222624] dark:text-stone-200 mb-1.5">
+                            <span className="flex items-center gap-1.5">
+                              <Clock className="w-3.5 h-3.5 text-[#3E5A4D] dark:text-emerald-400" />
+                              Tomas de hoy
+                            </span>
+                            <span className="text-[11px] text-[#606763] dark:text-stone-400 font-normal">
+                              {medDosesToday.length === 0
+                                ? 'Sin tomas hoy'
+                                : medDosesToday.length === 1
+                                ? '1 horario'
+                                : `${medDosesToday.length} horarios`}
+                            </span>
+                          </div>
+
+                          {medDosesToday.length > 0 ? (
+                            <div className="space-y-1.5">
+                              {medDosesToday.map((dose) => {
+                                const isActionable =
+                                  dose.status === 'scheduled' ||
+                                  dose.status === 'pending' ||
+                                  dose.status === 'delayed';
+                                return (
+                                  <div key={dose.id} className="flex items-center justify-between gap-2 text-xs">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-bold text-[#222624] dark:text-stone-100">
+                                        {dose.scheduled_time} hs
+                                      </span>
+                                      {dose.status === 'delayed' && (
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#FFF5E6] text-[#8A5300] border border-[#FFE0B2]">
+                                          Retrasada
+                                        </span>
+                                      )}
+                                    </div>
+                                    {dose.status === 'administered' ? (
+                                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full">
+                                        <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> Administrada
+                                        {dose.log?.administered_at && (
+                                          <span className="text-[10px] opacity-80">
+                                            ({new Date(dose.log.administered_at).toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit' })})
+                                          </span>
+                                        )}
+                                      </span>
+                                    ) : isActionable ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => setSelectedDose(dose)}
+                                        className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-[#3E5A4D] hover:bg-[#32493E] text-white text-[11px] font-semibold transition-all shadow-2xs"
+                                      >
+                                        Registrar toma
+                                      </button>
+                                    ) : (
+                                      <span className="text-[11px] text-[#606763] dark:text-stone-400 capitalize">
+                                        {dose.status}
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <p className="text-[11px] text-[#606763] dark:text-stone-400 italic">
+                              No hay tomas programadas para hoy
+                            </p>
+                          )}
                         </div>
-                        <div className="space-y-1.5">
-                          {medDosesToday.map((dose) => {
-                            const isActionable = dose.status === 'scheduled' || dose.status === 'pending' || dose.status === 'delayed';
-                            return (
-                              <div key={dose.id} className="flex items-center justify-between gap-2 text-xs">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-bold text-[#222624] dark:text-stone-100">{dose.scheduled_time} hs</span>
-                                  {dose.status === 'delayed' && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#FFF5E6] text-[#8A5300] border border-[#FFE0B2]">
-                                      Retrasada
-                                    </span>
-                                  )}
-                                </div>
-                                {dose.status === 'administered' ? (
-                                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full">
-                                    <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> Administrada
-                                  </span>
-                                ) : isActionable ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => setSelectedDose(dose)}
-                                    className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-[#3E5A4D] hover:bg-[#32493E] text-white text-[11px] font-semibold transition-all shadow-2xs"
-                                  >
-                                    Registrar toma
-                                  </button>
-                                ) : (
-                                  <span className="text-[11px] text-[#606763] dark:text-stone-400 capitalize">
-                                    {dose.status}
-                                  </span>
-                                )}
-                              </div>
-                            );
-                          })}
+
+                        {/* Section: Mañana */}
+                        <div className="pt-2 border-t border-[#EFECE5] dark:border-stone-700/60">
+                          <div className="flex items-center justify-between text-xs font-semibold text-[#222624] dark:text-stone-200 mb-1.5">
+                            <span className="flex items-center gap-1.5 text-stone-600 dark:text-stone-300">
+                              <Calendar className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+                              Mañana
+                            </span>
+                            <span className="text-[10px] text-stone-500 dark:text-stone-400 font-normal">
+                              {medDosesTomorrow.length > 0 ? `${medDosesTomorrow.length} tomas` : 'Sin tomas'}
+                            </span>
+                          </div>
+
+                          {medDosesTomorrow.length > 0 ? (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {medDosesTomorrow.map((td) => (
+                                <span
+                                  key={td.id}
+                                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[11px] font-semibold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800/60"
+                                >
+                                  <Clock className="w-3 h-3 text-sky-600 dark:text-sky-400" />
+                                  {td.scheduled_time} hs (Programada)
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-[11px] text-[#606763] dark:text-stone-400 italic">
+                              Sin tomas programadas para mañana
+                            </p>
+                          )}
                         </div>
                       </div>
                     );

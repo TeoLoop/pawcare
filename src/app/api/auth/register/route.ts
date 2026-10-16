@@ -5,7 +5,8 @@ import { createServiceRoleClient } from '@/lib/supabase/service';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, password, fullName } = body;
+    const { email, password, username, fullName } = body;
+    const userAlias = (username || fullName || '').trim();
 
     if (!email || !password) {
       return NextResponse.json(
@@ -36,7 +37,10 @@ export async function POST(request: NextRequest) {
         await supabaseAdmin.auth.admin.updateUserById(found.id, {
           email_confirm: true,
           password: password,
-          user_metadata: { full_name: fullName || found.user_metadata?.full_name || 'Tutor' },
+          user_metadata: {
+            username: userAlias || found.user_metadata?.username || 'Tutor',
+            full_name: userAlias || found.user_metadata?.full_name || 'Tutor',
+          },
         });
 
         return NextResponse.json({
@@ -53,7 +57,8 @@ export async function POST(request: NextRequest) {
       password,
       email_confirm: true,
       user_metadata: {
-        full_name: fullName || 'Tutor',
+        username: userAlias || 'Tutor',
+        full_name: userAlias || 'Tutor',
       },
     });
 

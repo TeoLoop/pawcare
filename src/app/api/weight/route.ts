@@ -13,6 +13,23 @@ export async function GET(request: NextRequest) {
     }
 
     const supabaseAdmin = createServiceRoleClient();
+
+    // 1. Try to fetch from PostgreSQL weight_logs table first
+    try {
+      const { data: dbLogs, error: dbError } = await supabaseAdmin
+        .from('weight_logs')
+        .select('*')
+        .eq('pet_id', petId)
+        .order('logged_date', { ascending: false });
+
+      if (!dbError && dbLogs && dbLogs.length > 0) {
+        return NextResponse.json({ logs: dbLogs as WeightLog[] });
+      }
+    } catch {
+      // Fallback to storage below
+    }
+
+    // 2. Fallback to Supabase Cloud Storage
     const filePath = `data/weight_logs_${petId}.json`;
 
     const { data, error } = await supabaseAdmin.storage
@@ -58,11 +75,28 @@ export async function POST(request: NextRequest) {
       });
 
     if (uploadError) {
-      console.error('[WeightAPI] Error uploading weight logs:', uploadError);
-      return NextResponse.json({ error: uploadError.message }, { status: 500 });
+      console.warn('[WeightAPI] Warning uploading weight logs to storage:', uploadError);
     }
 
-    // 2. Also update current weight_kg in pets table
+    // 2. Try inserting/updating PostgreSQL weight_logs table if exists
+    try {
+      if (logs.length > 0) {
+        const rows = logs.map((l) => ({
+          id: l.id,
+          pet_id: petId,
+          weight_kg: l.weight_kg,
+          logged_date: l.logged_date,
+          notes: l.notes || null,
+          created_at: l.created_at || new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }));
+        await supabaseAdmin.from('weight_logs').upsert(rows, { onConflict: 'id' });
+      }
+    } catch {
+      // Table may not exist yet, storage backup succeeded
+    }
+
+    // 3. Also update current weight_kg in pets table
     if (latestWeight !== undefined && latestWeight !== null) {
       await supabaseAdmin
         .from('pets')

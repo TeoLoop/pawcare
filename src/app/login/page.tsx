@@ -29,9 +29,10 @@ function translateError(error: string): string {
 export default function LoginPage() {
   const router = useRouter();
   const [tab, setTab] = useState<'signin' | 'signup'>('signin');
+  const [identifier, setIdentifier] = useState('');
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -49,13 +50,13 @@ export default function LoginPage() {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) return;
+    if (!identifier || !password) return;
 
     setLoading(true);
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    const res = await SupabaseAuthService.signInWithEmail(email.trim(), password);
+    const res = await SupabaseAuthService.signInWithEmail(identifier.trim(), password);
 
     if (res.error) {
       setLoading(false);
@@ -83,7 +84,12 @@ export default function LoginPage() {
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    const res = await SupabaseAuthService.signUpWithEmail(email.trim(), password, fullName.trim());
+    const res = await SupabaseAuthService.signUpWithEmail(
+      email.trim(),
+      password,
+      username.trim(),
+      username.trim()
+    );
 
     if (res.error) {
       setLoading(false);
@@ -169,17 +175,17 @@ export default function LoginPage() {
             <form onSubmit={handleSignIn} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300 mb-1.5">
-                  Correo electrónico
+                  Usuario o Correo electrónico
                 </label>
                 <div className="relative">
-                  <Mail className="w-4 h-4 absolute left-3.5 top-3 text-stone-400" />
+                  <UserIcon className="w-4 h-4 absolute left-3.5 top-3 text-stone-400" />
                   <input
-                    type="email"
+                    type="text"
                     required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="tu@correo.com"
-                    autoComplete="email"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    placeholder="tu_usuario o tu@correo.com"
+                    autoComplete="username"
                     className="w-full pl-10 pr-3.5 py-2.5 bg-[#FAF8F5] dark:bg-stone-800 border border-[#E5E1D6] dark:border-stone-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#3E5A4D]"
                   />
                 </div>
@@ -226,17 +232,17 @@ export default function LoginPage() {
             <form onSubmit={handleSignUp} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300 mb-1.5">
-                  Tu nombre o apodo de tutor
+                  Nombre de Usuario
                 </label>
                 <div className="relative">
                   <UserIcon className="w-4 h-4 absolute left-3.5 top-3 text-stone-400" />
                   <input
                     type="text"
                     required
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Ej. Mateo"
-                    autoComplete="name"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Ej. mateo o kira_tutor"
+                    autoComplete="username"
                     className="w-full pl-10 pr-3.5 py-2.5 bg-[#FAF8F5] dark:bg-stone-800 border border-[#E5E1D6] dark:border-stone-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#3E5A4D]"
                   />
                 </div>
