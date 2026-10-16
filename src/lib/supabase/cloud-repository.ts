@@ -356,7 +356,7 @@ export class SupabaseCloudRepository {
 
     const { error } = await this.supabase
       .from('scheduled_doses')
-      .upsert(validDoses, { onConflict: 'id' });
+      .upsert(validDoses, { onConflict: 'medication_id,scheduled_for', ignoreDuplicates: true });
 
     if (error) {
       console.warn('[SupabaseCloud] Error upserting scheduled doses:', error.message);

@@ -418,15 +418,16 @@ export class KiraRepository {
       { previewDays: days, fromDate: todayStr }
     );
 
-    const existingTimeMap = new Set(
+    const existingKeySet = new Set(
       memoryState.scheduledDoses
         .filter((d) => d.medication_id === med.id)
-        .map((d) => d.scheduled_for)
+        .map((d) => `${d.scheduled_date}_${d.scheduled_time}`)
     );
 
     const newDoses: ScheduledDose[] = [];
     for (const g of generated) {
-      if (!existingTimeMap.has(g.scheduled_for)) {
+      const key = `${g.scheduled_date}_${g.scheduled_time}`;
+      if (!existingKeySet.has(key)) {
         newDoses.push({
           id: crypto.randomUUID(),
           pet_id: med.pet_id,
@@ -444,6 +445,7 @@ export class KiraRepository {
           updated_at: new Date().toISOString(),
           medication: med,
         });
+        existingKeySet.add(key);
       }
     }
 
@@ -465,8 +467,20 @@ export class KiraRepository {
     const targetDate = date === undefined ? getLocalDateString() : date;
     const targetPetId = petId || memoryState.activePetId;
     
-    return memoryState.scheduledDoses
-      .filter((d) => (targetDate === 'all' || d.scheduled_date === targetDate) && (targetPetId === 'all' || d.pet_id === targetPetId))
+    const filtered = memoryState.scheduledDoses
+      .filter((d) => (targetDate === 'all' || d.scheduled_date === targetDate) && (targetPetId === 'all' || d.pet_id === targetPetId));
+
+    // Deduplicate by medication_id + scheduled_date + scheduled_time, prioritizing 'administered' or 'skipped'
+    const uniqueMap = new Map<string, ScheduledDose>();
+    for (const d of filtered) {
+      const key = `${d.medication_id}_${d.scheduled_date}_${d.scheduled_time}`;
+      const existing = uniqueMap.get(key);
+      if (!existing || (d.status === 'administered' && existing.status !== 'administered')) {
+        uniqueMap.set(key, d);
+      }
+    }
+
+    return Array.from(uniqueMap.values())
       .map((d) => {
         const med = memoryState.medications.find((m) => m.id === d.medication_id);
         const log = memoryState.doseLogs.find((l) => l.scheduled_dose_id === d.id);
@@ -926,12 +940,18 @@ export class KiraRepository {
 
   static setScheduledDosesFromCloud(doses: ScheduledDose[]): void {
     this.init();
-    memoryState.scheduledDoses = doses || [];
-    for (const med of memoryState.medications) {
-      if (med.is_active && med.schedule && med.schedule.is_active) {
-        this.generateUpcomingDosesForMedication(med);
+    
+    // Deduplicate doses by medication_id + scheduled_date + scheduled_time, prioritizing 'administered'
+    const doseMap = new Map<string, ScheduledDose>();
+    for (const d of doses || []) {
+      const key = `${d.medication_id}_${d.scheduled_date}_${d.scheduled_time}`;
+      const existing = doseMap.get(key);
+      if (!existing || (d.status === 'administered' && existing.status !== 'administered')) {
+        doseMap.set(key, d);
       }
     }
+
+    memoryState.scheduledDoses = Array.from(doseMap.values());
     saveToStorage(STORAGE_KEYS.DOSES, memoryState.scheduledDoses);
   }
 
