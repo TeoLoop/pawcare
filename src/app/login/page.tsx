@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation';
 import { SupabaseAuthService } from '@/lib/supabase/auth-service';
 import { CloudSyncService } from '@/lib/supabase/sync-service';
 import { isLiveSupabaseConfigured } from '@/lib/supabase/client';
-import { Heart, Mail, Lock, User as UserIcon, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Mail, Lock, User as UserIcon, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { PawIcon } from '@/components/ui/paw-icon';
 
 function translateError(error: string): string {
   const lower = error.toLowerCase();
@@ -108,7 +109,7 @@ export default function LoginPage() {
         {/* Brand Header */}
         <div className="text-center space-y-3 mb-6">
           <div className="w-14 h-14 rounded-2xl bg-[#E9EFEA] dark:bg-emerald-950/50 text-[#3E5A4D] dark:text-emerald-400 flex items-center justify-center mx-auto shadow-xs">
-            <Heart className="w-7 h-7 fill-current" />
+            <PawIcon className="w-7 h-7 fill-current" />
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-[#222624] dark:text-stone-100">

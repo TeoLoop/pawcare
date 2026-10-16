@@ -4,7 +4,8 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Pill, History, Activity, Settings, Heart, User, LogOut } from 'lucide-react';
+import { Home, Pill, History, Activity, Settings, User } from 'lucide-react';
+import { PawIcon } from '@/components/ui/paw-icon';
 import { cn } from '@/lib/utils';
 import { KiraRepository } from '@/lib/storage/repository';
 import { Pet } from '@/types/medication';
@@ -47,16 +48,16 @@ export function Sidebar() {
   }, []);
 
   return (
-    <aside className="hidden md:flex flex-col w-64 bg-white border-r border-[#E5E1D6] p-5 shrink-0 min-h-screen justify-between">
+    <aside className="hidden md:flex flex-col w-64 bg-white dark:bg-stone-900 border-r border-[#E5E1D6] dark:border-stone-800 p-5 shrink-0 min-h-screen justify-between">
       <div>
         {/* Brand */}
         <div className="flex items-center gap-3 px-2 py-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-[#E9EFEA] flex items-center justify-center text-[#3E5A4D] shadow-xs">
-            <Heart className="w-5 h-5 fill-[#3E5A4D]" />
+          <div className="w-10 h-10 rounded-xl bg-[#E9EFEA] dark:bg-emerald-950/40 flex items-center justify-center text-[#3E5A4D] dark:text-emerald-400 shadow-xs">
+            <PawIcon className="w-5 h-5 fill-current" />
           </div>
           <div>
-            <span className="font-bold text-lg tracking-tight text-[#222624]">PawCare</span>
-            <p className="text-[11px] text-[#606763] font-medium leading-tight">Salud & Medicación</p>
+            <span className="font-bold text-lg tracking-tight text-[#222624] dark:text-stone-100">PawCare</span>
+            <p className="text-[11px] text-[#606763] dark:text-stone-400 font-medium leading-tight">Salud & Medicación</p>
           </div>
         </div>
 

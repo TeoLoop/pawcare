@@ -9,7 +9,8 @@ import { TopHeader } from './top-header';
 import { SupabaseAuthService } from '@/lib/supabase/auth-service';
 import { CloudSyncService } from '@/lib/supabase/sync-service';
 import { isLiveSupabaseConfigured } from '@/lib/supabase/client';
-import { Heart, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
+import { PawIcon } from '@/components/ui/paw-icon';
 
 function ShellInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -91,7 +92,7 @@ function ShellInner({ children }: { children: React.ReactNode }) {
       <div className="min-h-screen bg-[#FAF8F5] dark:bg-stone-950 flex flex-col items-center justify-center p-4">
         <div className="flex flex-col items-center gap-3 animate-in fade-in">
           <div className="w-12 h-12 rounded-2xl bg-[#E9EFEA] dark:bg-emerald-950/50 text-[#3E5A4D] dark:text-emerald-400 flex items-center justify-center shadow-xs">
-            <Heart className="w-6 h-6 fill-current animate-pulse" />
+            <PawIcon className="w-6 h-6 fill-current animate-pulse" />
           </div>
           <div className="flex items-center gap-2 text-xs font-semibold text-[#606763] dark:text-stone-400">
             <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#3E5A4D] dark:text-emerald-400" />

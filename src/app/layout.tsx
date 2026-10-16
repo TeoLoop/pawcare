@@ -6,6 +6,11 @@ import { ThemeProvider } from '@/components/theme/theme-provider';
 export const metadata: Metadata = {
   title: 'PawCare — Gestión de Salud y Medicación de Mascotas',
   description: 'Aplicación para gestionar medicamentos, recordatorios fiables de WhatsApp y seguimiento de salud de tus mascotas.',
+  icons: {
+    icon: '/icon.svg',
+    shortcut: '/icon.svg',
+    apple: '/icon.svg',
+  },
 };
 
 export default function RootLayout({

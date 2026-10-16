@@ -5,7 +5,8 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { KiraRepository } from '@/lib/storage/repository';
 import { ScheduledDose } from '@/types/medication';
-import { CheckCircle2, Clock, Pill, ArrowLeft, ShieldCheck, Heart } from 'lucide-react';
+import { CheckCircle2, Clock, Pill, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { PawIcon } from '@/components/ui/paw-icon';
 
 export function ConfirmarClient({ token }: { token: string }) {
   const [dose, setDose] = useState<ScheduledDose | null>(null);
@@ -70,7 +71,7 @@ export function ConfirmarClient({ token }: { token: string }) {
         {/* Brand Header */}
         <div className="text-center mb-6">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#E9EFEA] text-[#274033] text-xs font-semibold tracking-wide uppercase mb-3">
-            <Heart className="w-3.5 h-3.5 fill-[#3E5A4D] text-[#3E5A4D]" />
+            <PawIcon className="w-3.5 h-3.5 fill-current text-[#3E5A4D]" />
             PawCare • Confirmación Segura
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-[#222624]">
