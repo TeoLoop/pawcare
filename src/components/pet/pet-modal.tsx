@@ -173,7 +173,11 @@ export function PetModal({ isOpen, onClose, onSuccess, petToEdit }: PetModalProp
           <div className="flex-1 text-center sm:text-left">
             <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-stone-800 border border-[#E5E1D6] dark:border-stone-700 hover:bg-[#FAF8F5] dark:hover:bg-stone-700 text-xs font-semibold text-[#222624] dark:text-stone-100 cursor-pointer shadow-xs transition-colors">
               <Upload className="w-3.5 h-3.5 text-[#3E5A4D] dark:text-emerald-400" />
-              <span>{photoUrl ? 'Cambiar foto' : 'Elegir foto de tu perra'}</span>
+              <span>
+                {photoUrl
+                  ? `Cambiar foto${name.trim() ? ` de ${name.trim()}` : ''}`
+                  : `Elegir foto${name.trim() ? ` de ${name.trim()}` : ' de tu mascota'}`}
+              </span>
               <input
                 type="file"
                 accept="image/*"

@@ -161,7 +161,7 @@ export default function HomePage() {
             <div className="flex items-center gap-3.5 sm:gap-4">
               <div
                 onClick={() => setIsPetModalOpen(true)}
-                title="Clic para cambiar la foto de tu perra o editar su perfil"
+                title={`Clic para cambiar la foto de ${pet.name} o editar su perfil`}
                 className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#E9EFEA] dark:bg-emerald-950/40 border-2 border-[#D3DFD7] dark:border-emerald-800 flex items-center justify-center text-[#3E5A4D] dark:text-emerald-400 shrink-0 font-bold text-2xl shadow-xs overflow-hidden cursor-pointer relative group hover:opacity-90 transition-opacity"
               >
                 {pet.photo_url ? (
