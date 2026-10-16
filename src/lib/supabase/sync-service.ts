@@ -113,6 +113,17 @@ export class CloudSyncService {
         KiraRepository.setUserSettingsFromCloud(cloudSettings);
       }
 
+      // 9. Fetch weight logs
+      const currentPets = KiraRepository.getPets();
+      for (const p of currentPets) {
+        if (p.id) {
+          const cloudWeights = await SupabaseCloudRepository.getWeightLogs(p.id);
+          if (cloudWeights && cloudWeights.length > 0) {
+            KiraRepository.setWeightLogsFromCloud(cloudWeights, p.id);
+          }
+        }
+      }
+
       syncStatusState.lastSyncedAt = new Date().toISOString();
       syncStatusState.syncing = false;
 

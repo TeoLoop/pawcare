@@ -1005,8 +1005,9 @@ export class KiraRepository {
       pet.updated_at = now;
       saveToStorage(STORAGE_KEYS.PETS, memoryState.pets);
       if (isClient() && isLiveSupabaseConfigured()) {
-        SupabaseCloudRepository.updatePet(assignedPetId, { weight_kg: log.weight_kg }).catch((err) =>
-          console.warn('[CloudSync] updatePet weight_kg error:', err)
+        const petLogs = memoryState.weightLogs.filter((w) => w.pet_id === assignedPetId);
+        SupabaseCloudRepository.saveWeightLogs(assignedPetId, petLogs, log.weight_kg).catch((err) =>
+          console.warn('[CloudSync] saveWeightLogs error:', err)
         );
       }
       if (isClient()) {
@@ -1034,13 +1035,14 @@ export class KiraRepository {
         return b.created_at.localeCompare(a.created_at);
       });
     const pet = memoryState.pets.find((p) => p.id === petId);
+    const newWeight = remaining[0]?.weight_kg ?? undefined;
     if (pet) {
-      pet.weight_kg = remaining[0]?.weight_kg ?? undefined;
+      pet.weight_kg = newWeight;
       pet.updated_at = new Date().toISOString();
       saveToStorage(STORAGE_KEYS.PETS, memoryState.pets);
       if (isClient() && isLiveSupabaseConfigured()) {
-        SupabaseCloudRepository.updatePet(petId, { weight_kg: pet.weight_kg }).catch((err) =>
-          console.warn('[CloudSync] updatePet weight_kg error:', err)
+        SupabaseCloudRepository.saveWeightLogs(petId, remaining, newWeight).catch((err) =>
+          console.warn('[CloudSync] saveWeightLogs on delete error:', err)
         );
       }
       if (isClient()) {
@@ -1158,6 +1160,18 @@ export class KiraRepository {
     this.init();
     memoryState.documents = docs || [];
     saveToStorage(STORAGE_KEYS.DOCUMENTS, memoryState.documents);
+  }
+
+  static setWeightLogsFromCloud(logs: WeightLog[], petId?: string): void {
+    this.init();
+    if (!logs) return;
+    if (petId) {
+      const otherPetsLogs = memoryState.weightLogs.filter((w) => w.pet_id !== petId);
+      memoryState.weightLogs = [...logs, ...otherPetsLogs];
+    } else {
+      memoryState.weightLogs = logs;
+    }
+    saveToStorage(STORAGE_KEYS.WEIGHT_LOGS, memoryState.weightLogs);
   }
 
   static setUserSettingsFromCloud(settings: UserSettings): void {

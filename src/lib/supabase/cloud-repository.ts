@@ -1,7 +1,7 @@
 // src/lib/supabase/cloud-repository.ts
 import { createClient, isLiveSupabaseConfigured } from './client';
 import { Pet, Medication, MedicationSchedule, ScheduledDose, DoseLog, DoseStatus } from '@/types/medication';
-import { SymptomLog } from '@/types/health';
+import { SymptomLog, WeightLog } from '@/types/health';
 import { VetVisit, MedicalDocument } from '@/types/veterinary';
 import { UserSettings } from '@/types/settings';
 
@@ -740,5 +740,34 @@ export class SupabaseCloudRepository {
       publicUrl: data.publicUrl,
       fileName: file.name,
     };
+  }
+
+  // --- WEIGHT LOGS ---
+  static async getWeightLogs(petId?: string): Promise<WeightLog[]> {
+    if (!isLiveSupabaseConfigured() || !petId) return [];
+    try {
+      const res = await fetch(`/api/weight?petId=${encodeURIComponent(petId)}`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return (data.logs || []) as WeightLog[];
+    } catch (err) {
+      console.warn('[SupabaseCloud] Error fetching weight logs:', err);
+      return [];
+    }
+  }
+
+  static async saveWeightLogs(petId: string, logs: WeightLog[], latestWeight?: number): Promise<boolean> {
+    if (!isLiveSupabaseConfigured() || !petId) return false;
+    try {
+      const res = await fetch('/api/weight', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ petId, logs, latestWeight }),
+      });
+      return res.ok;
+    } catch (err) {
+      console.warn('[SupabaseCloud] Error saving weight logs:', err);
+      return false;
+    }
   }
 }
