@@ -6,6 +6,7 @@ export interface UserSettings {
   pet_id: string;
   timezone: string; // 'America/Montevideo'
   whatsapp_phone: string;
+  callmebot_api_key: string; // Free personal API key from CallMeBot (no Meta Business needed)
   reminders_enabled: boolean;
   advance_notice_minutes: number;
   pending_dose_alert: boolean;

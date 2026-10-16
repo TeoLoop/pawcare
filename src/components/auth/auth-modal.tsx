@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Modal } from '@/components/ui/modal';
 import { SupabaseAuthService } from '@/lib/supabase/auth-service';
 import { CloudSyncService, SyncStatus } from '@/lib/supabase/sync-service';
@@ -17,6 +18,7 @@ interface AuthModalProps {
 }
 
 export function AuthModal({ isOpen, onClose, onSuccess, initialTab = 'signin' }: AuthModalProps) {
+  const router = useRouter();
   const [tab, setTab] = useState<'signin' | 'signup'>(initialTab);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -28,9 +30,11 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialTab = 'signin' }:
   const [isConfigured, setIsConfigured] = useState(false);
 
   useEffect(() => {
-    setIsConfigured(isLiveSupabaseConfigured());
-    setSyncStatus(CloudSyncService.getStatus());
-    setTab(initialTab);
+    queueMicrotask(() => {
+      setIsConfigured(isLiveSupabaseConfigured());
+      setSyncStatus(CloudSyncService.getStatus());
+      setTab(initialTab);
+    });
 
     const handleSynced = () => {
       setSyncStatus(CloudSyncService.getStatus());
@@ -96,7 +100,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialTab = 'signin' }:
     setSyncStatus(CloudSyncService.getStatus());
     setLoading(false);
     onClose();
-    window.location.href = '/login';
+    router.push('/login');
   };
 
   const handleManualSync = async () => {
@@ -197,7 +201,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialTab = 'signin' }:
                 type="button"
                 onClick={() => {
                   onClose();
-                  window.location.href = '/ajustes';
+                  router.push('/ajustes');
                 }}
                 className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-stone-900 hover:bg-[#FAF8F5] dark:hover:bg-stone-800 border border-[#E5E1D6] dark:border-stone-700 text-[#3E5A4D] dark:text-emerald-400 rounded-xl text-xs font-bold transition-colors"
               >
@@ -235,8 +239,9 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialTab = 'signin' }:
                 </span>
               </div>
             </div>
-          /* Authentication Forms */
-          <div className="space-y-4">
+
+            {/* Authentication Forms */}
+            <div className="space-y-4">
             {/* Segmented Switch */}
             <div className="grid grid-cols-2 p-1 bg-stone-100 dark:bg-stone-800 rounded-xl">
               <button

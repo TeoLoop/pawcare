@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { KiraRepository } from '@/lib/storage/repository';
 import { NotificationScheduler } from './scheduler';
-import { WhatsAppCloudApiClient } from './client';
+import { WhatsAppCloudApiClient, buildWhatsAppDirectLink } from './client';
 import { buildDoseIdempotencyKey } from './token';
 
 describe('WhatsApp Scheduler & Reliability Tests', () => {
@@ -80,6 +80,32 @@ describe('WhatsApp Scheduler & Reliability Tests', () => {
     expect(message).toContain('09:00');
     expect(message).toContain('Con el desayuno');
     expect(message).toContain('https://pawcare.app/confirmar-toma/test-token-123');
+  });
+
+  it('generates direct wa.me links with clean phone number and encoded text', () => {
+    const linkWithPhone = buildWhatsAppDirectLink({
+      phone: '+598 99 123 456',
+      petName: 'Kira',
+      medicationName: 'Meloxicam',
+      doseAmount: 1,
+      doseUnit: 'ml',
+      scheduledTime: '09:00',
+      instructions: 'Con el desayuno',
+      confirmationUrl: 'https://pawcare.app/confirmar-toma/abc',
+    });
+
+    expect(linkWithPhone).toContain('https://wa.me/59899123456?text=');
+    expect(decodeURIComponent(linkWithPhone)).toContain('Kira');
+    expect(decodeURIComponent(linkWithPhone)).toContain('*Meloxicam* (1 ml)');
+    expect(decodeURIComponent(linkWithPhone)).toContain('09:00 hs');
+    expect(decodeURIComponent(linkWithPhone)).toContain('Con el desayuno');
+
+    const linkWithoutPhone = buildWhatsAppDirectLink({
+      petName: 'Kira',
+      medicationName: 'Meloxicam',
+      scheduledTime: '09:00',
+    });
+    expect(linkWithoutPhone.startsWith('https://wa.me/?text=')).toBe(true);
   });
 
   it('operates safely in simulation mode when Meta credentials are not configured', async () => {

@@ -34,7 +34,9 @@ export default function MedicacionPage() {
   };
 
   useEffect(() => {
-    loadData();
+    queueMicrotask(() => {
+      loadData();
+    });
 
     const handlePetChange = () => {
       loadData();
@@ -71,11 +73,13 @@ export default function MedicacionPage() {
   return (
     <div className="space-y-6">
       {/* Top Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 sm:gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#222624]">Pautas de Medicación</h1>
-          <p className="text-xs text-[#606763] mt-0.5">
-            Tratamientos activos, recetas veterinarias y control de inventario de Kira
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#222624] dark:text-stone-100">
+            Pautas de Medicación
+          </h1>
+          <p className="text-xs text-[#606763] dark:text-stone-400 mt-0.5">
+            Tratamientos activos, recetas veterinarias y control de existencias
           </p>
         </div>
 
@@ -85,32 +89,35 @@ export default function MedicacionPage() {
             setMedToEdit(null);
             setIsModalOpen(true);
           }}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#3E5A4D] hover:bg-[#32493E] text-white text-xs font-semibold shadow-xs transition-colors self-start sm:self-auto"
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#3E5A4D] hover:bg-[#32493E] text-white text-xs font-semibold shadow-xs transition-colors shrink-0"
         >
           <Plus className="w-4 h-4" />
-          Añadir Medicamento
+          <span>Añadir Medicamento</span>
         </button>
       </div>
 
       {/* Stock Forecast & Depletion Warnings */}
       {forecasts.some((f) => f.isLowStock || f.needsRestockWarning) && (
-        <div className="p-4 rounded-2xl bg-[#FFF8EE] border border-[#FFE7C4] space-y-2">
-          <div className="flex items-center gap-2 text-xs font-bold text-[#8A5300]">
-            <AlertTriangle className="w-4 h-4 text-[#C97A24]" />
+        <div className="p-4 rounded-2xl bg-[#FFF8EE] dark:bg-amber-950/30 border border-[#FFE7C4] dark:border-amber-900/50 space-y-2">
+          <div className="flex items-center gap-2 text-xs font-bold text-[#8A5300] dark:text-amber-300">
+            <AlertTriangle className="w-4 h-4 text-[#C97A24] dark:text-amber-400 shrink-0" />
             <span>Avisos de reposición de existencias</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             {forecasts
               .filter((f) => f.isLowStock || f.needsRestockWarning)
               .map((f) => (
-                <div key={f.medicationId} className="bg-white p-3 rounded-xl border border-[#FFE7C4] text-xs">
-                  <p className="font-semibold text-[#222624]">{f.medicationName}</p>
-                  <p className="text-[#8A5300] mt-0.5">
+                <div
+                  key={f.medicationId}
+                  className="bg-white dark:bg-stone-900 p-3 rounded-xl border border-[#FFE7C4] dark:border-amber-900/40 text-xs shadow-2xs"
+                >
+                  <p className="font-semibold text-[#222624] dark:text-stone-100">{f.medicationName}</p>
+                  <p className="text-[#8A5300] dark:text-amber-300 mt-0.5">
                     Quedan: <strong>{f.currentStock} {f.unit}</strong>
                     {f.daysRemaining !== null && ` (~${f.daysRemaining} días)`}
                   </p>
                   {f.estimatedDepletionDate && (
-                    <p className="text-[10px] text-[#606763] mt-0.5">
+                    <p className="text-[10px] text-[#606763] dark:text-stone-400 mt-0.5">
                       Agotamiento estimado: {f.estimatedDepletionDate}
                     </p>
                   )}
@@ -120,13 +127,15 @@ export default function MedicacionPage() {
         </div>
       )}
 
-      {/* Filter Tabs */}
-      <div className="flex items-center gap-1.5 p-1 rounded-xl bg-white border border-[#E5E1D6] max-w-fit">
+      {/* Filter Segmented Control */}
+      <div className="w-full sm:w-fit grid grid-cols-3 sm:flex items-center gap-1 p-1 rounded-2xl bg-white dark:bg-stone-900 border border-[#E5E1D6] dark:border-stone-800 shadow-2xs">
         <button
           type="button"
           onClick={() => setFilter('all')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-            filter === 'all' ? 'bg-[#E9EFEA] text-[#274033] font-semibold' : 'text-[#606763] hover:text-[#222624]'
+          className={`px-3 py-2 rounded-xl text-xs text-center font-medium transition-all ${
+            filter === 'all'
+              ? 'bg-[#E9EFEA] text-[#274033] dark:bg-emerald-950/60 dark:text-emerald-300 font-semibold shadow-2xs'
+              : 'text-[#606763] dark:text-stone-400 hover:text-[#222624] dark:hover:text-stone-200'
           }`}
         >
           Todos ({medications.length})
@@ -134,8 +143,10 @@ export default function MedicacionPage() {
         <button
           type="button"
           onClick={() => setFilter('active')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-            filter === 'active' ? 'bg-[#E9EFEA] text-[#274033] font-semibold' : 'text-[#606763] hover:text-[#222624]'
+          className={`px-3 py-2 rounded-xl text-xs text-center font-medium transition-all ${
+            filter === 'active'
+              ? 'bg-[#E9EFEA] text-[#274033] dark:bg-emerald-950/60 dark:text-emerald-300 font-semibold shadow-2xs'
+              : 'text-[#606763] dark:text-stone-400 hover:text-[#222624] dark:hover:text-stone-200'
           }`}
         >
           Activos ({medications.filter((m) => m.is_active).length})
@@ -143,8 +154,10 @@ export default function MedicacionPage() {
         <button
           type="button"
           onClick={() => setFilter('paused')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-            filter === 'paused' ? 'bg-[#E9EFEA] text-[#274033] font-semibold' : 'text-[#606763] hover:text-[#222624]'
+          className={`px-3 py-2 rounded-xl text-xs text-center font-medium transition-all ${
+            filter === 'paused'
+              ? 'bg-[#E9EFEA] text-[#274033] dark:bg-emerald-950/60 dark:text-emerald-300 font-semibold shadow-2xs'
+              : 'text-[#606763] dark:text-stone-400 hover:text-[#222624] dark:hover:text-stone-200'
           }`}
         >
           Pausados ({medications.filter((m) => !m.is_active).length})
@@ -153,13 +166,15 @@ export default function MedicacionPage() {
 
       {/* Medication Cards List */}
       {filteredMeds.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-[#E5E1D6] p-10 text-center shadow-xs">
-          <div className="w-12 h-12 rounded-full bg-[#E9EFEA] text-[#3E5A4D] flex items-center justify-center mx-auto mb-3">
+        <div className="bg-white dark:bg-stone-900 rounded-2xl sm:rounded-3xl border border-[#E5E1D6] dark:border-stone-800 p-8 sm:p-12 text-center shadow-xs">
+          <div className="w-12 h-12 rounded-2xl bg-[#E9EFEA] dark:bg-emerald-950/40 text-[#3E5A4D] dark:text-emerald-400 flex items-center justify-center mx-auto mb-3">
             <Pill className="w-6 h-6" />
           </div>
-          <h3 className="text-base font-semibold text-[#222624]">No hay medicamentos para este filtro</h3>
-          <p className="text-xs text-[#606763] mt-1 max-w-sm mx-auto">
-            Registrá la prescripción médica de Kira con sus horarios y dosis exactas.
+          <h3 className="text-base font-semibold text-[#222624] dark:text-stone-100">
+            No hay medicamentos para este filtro
+          </h3>
+          <p className="text-xs text-[#606763] dark:text-stone-400 mt-1 max-w-sm mx-auto">
+            Registrá la prescripción médica con sus horarios y dosis exactas.
           </p>
         </div>
       ) : (
@@ -170,45 +185,47 @@ export default function MedicacionPage() {
             return (
               <div
                 key={med.id}
-                className={`bg-white rounded-2xl border p-5 shadow-xs flex flex-col justify-between transition-all ${
-                  med.is_active ? 'border-[#E5E1D6]' : 'border-[#EFECE5] opacity-75'
+                className={`bg-white dark:bg-stone-900 rounded-2xl sm:rounded-3xl border p-4 sm:p-5 shadow-xs flex flex-col justify-between transition-all ${
+                  med.is_active
+                    ? 'border-[#E5E1D6] dark:border-stone-800'
+                    : 'border-[#EFECE5] dark:border-stone-850 opacity-75'
                 }`}
               >
                 <div>
                   <div className="flex items-start justify-between gap-3 mb-2.5">
                     <div>
                       <div className="flex items-center gap-2">
-                        <h3 className="text-base font-bold text-[#222624]">{med.name}</h3>
+                        <h3 className="text-base font-bold text-[#222624] dark:text-stone-100">{med.name}</h3>
                         {!med.is_active && (
-                          <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-[#EFECE5] text-[#606763]">
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-[#EFECE5] dark:bg-stone-800 text-[#606763] dark:text-stone-400">
                             Pausado
                           </span>
                         )}
                       </div>
                       {med.active_substance && (
-                        <p className="text-xs text-[#606763] font-medium">{med.active_substance}</p>
+                        <p className="text-xs text-[#606763] dark:text-stone-400 font-medium">{med.active_substance}</p>
                       )}
                     </div>
 
-                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-[#E9EFEA] text-[#274033] shrink-0">
+                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-[#E9EFEA] text-[#274033] dark:bg-emerald-950/50 dark:border dark:border-emerald-800 dark:text-emerald-300 shrink-0">
                       {med.dose_amount} {med.dose_unit}
                     </span>
                   </div>
 
-                  <p className="text-xs text-[#606763] mb-3">
-                    Presentación: <span className="text-[#222624] font-medium">{med.presentation}</span>
+                  <p className="text-xs text-[#606763] dark:text-stone-400 mb-3">
+                    Presentación: <span className="text-[#222624] dark:text-stone-200 font-medium">{med.presentation}</span>
                   </p>
 
                   {/* Schedule Details */}
                   {med.schedule && (
-                    <div className="p-3 rounded-xl bg-[#FAF8F5] border border-[#EFECE5] text-xs space-y-1.5 mb-3">
-                      <div className="flex items-center gap-1.5 text-[#222624]">
-                        <Clock className="w-3.5 h-3.5 text-[#3E5A4D]" />
+                    <div className="p-3 rounded-xl bg-[#FAF8F5] dark:bg-stone-800/60 border border-[#EFECE5] dark:border-stone-700/80 text-xs space-y-1.5 mb-3">
+                      <div className="flex items-center gap-1.5 text-[#222624] dark:text-stone-200">
+                        <Clock className="w-3.5 h-3.5 text-[#3E5A4D] dark:text-emerald-400 shrink-0" />
                         <span>
                           Horarios: <strong>{med.schedule.times_of_day.join(', ')} hs</strong>
                         </span>
                       </div>
-                      <div className="text-[#606763]">
+                      <div className="text-[#606763] dark:text-stone-400">
                         Frecuencia: {med.schedule.frequency_type === 'daily' ? 'Diaria' : 'Días específicos'}
                         {med.schedule.end_date && ` • Hasta: ${med.schedule.end_date}`}
                       </div>
@@ -217,24 +234,27 @@ export default function MedicacionPage() {
 
                   {/* Instructions */}
                   {med.instructions && (
-                    <p className="text-xs text-[#3E5A4D] bg-[#F4F8F5] p-2.5 rounded-xl border border-[#D3DFD7] mb-3 font-medium">
+                    <p className="text-xs text-[#3E5A4D] dark:text-emerald-300 bg-[#F4F8F5] dark:bg-emerald-950/30 p-2.5 rounded-xl border border-[#D3DFD7] dark:border-emerald-900/40 mb-3 font-medium">
                       📋 {med.instructions}
                     </p>
                   )}
 
                   {/* Inventory Info */}
                   {med.track_inventory && (
-                    <div className="flex items-center justify-between text-xs py-2 px-3 rounded-xl bg-[#FAF8F5] border border-[#EFECE5] mb-3">
+                    <div className="flex items-center justify-between text-xs py-2 px-3 rounded-xl bg-[#FAF8F5] dark:bg-stone-800/60 border border-[#EFECE5] dark:border-stone-700/80 mb-3">
                       <div className="flex items-center gap-1.5">
-                        <Package className="w-3.5 h-3.5 text-[#3E5A4D]" />
-                        <span>
-                          Stock: <strong className={isLow ? 'text-[#C34A3E]' : 'text-[#222624]'}>{med.current_stock} {med.dose_unit}</strong>
+                        <Package className="w-3.5 h-3.5 text-[#3E5A4D] dark:text-emerald-400 shrink-0" />
+                        <span className="dark:text-stone-300">
+                          Stock:{' '}
+                          <strong className={isLow ? 'text-[#C34A3E] dark:text-rose-400' : 'text-[#222624] dark:text-stone-100'}>
+                            {med.current_stock} {med.dose_unit}
+                          </strong>
                         </span>
                       </div>
                       <button
                         type="button"
                         onClick={() => setRestockMed(med)}
-                        className="text-xs font-semibold text-[#3E5A4D] hover:underline"
+                        className="text-xs font-semibold text-[#3E5A4D] dark:text-emerald-400 hover:underline"
                       >
                         + Reponer stock
                       </button>
@@ -243,31 +263,31 @@ export default function MedicacionPage() {
                 </div>
 
                 {/* Card Actions */}
-                <div className="flex items-center justify-between pt-3 border-t border-[#EFECE5]">
+                <div className="flex items-center justify-between pt-3 border-t border-[#EFECE5] dark:border-stone-800">
                   <button
                     type="button"
                     onClick={() => handleToggleActive(med)}
-                    className="inline-flex items-center gap-1 text-xs font-medium text-[#606763] hover:text-[#222624]"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#606763] dark:text-stone-300 hover:text-[#222624] dark:hover:text-stone-100 px-2.5 py-1.5 rounded-lg hover:bg-[#FAF8F5] dark:hover:bg-stone-800 transition-colors"
                   >
                     {med.is_active ? (
                       <>
-                        <Pause className="w-3.5 h-3.5" /> Pausar pauta
+                        <Pause className="w-3.5 h-3.5" /> <span>Pausar</span>
                       </>
                     ) : (
                       <>
-                        <Play className="w-3.5 h-3.5" /> Reanudar pauta
+                        <Play className="w-3.5 h-3.5" /> <span>Reanudar</span>
                       </>
                     )}
                   </button>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 sm:gap-2">
                     <button
                       type="button"
                       onClick={() => {
                         setMedToEdit(med);
                         setIsModalOpen(true);
                       }}
-                      className="p-1.5 rounded-lg text-[#606763] hover:text-[#222624] hover:bg-[#FAF8F5]"
+                      className="p-2 rounded-xl text-[#606763] dark:text-stone-400 hover:text-[#222624] dark:hover:text-stone-200 hover:bg-[#FAF8F5] dark:hover:bg-stone-800 transition-colors"
                       title="Editar pauta"
                     >
                       <Edit2 className="w-4 h-4" />
@@ -275,7 +295,7 @@ export default function MedicacionPage() {
                     <button
                       type="button"
                       onClick={() => handleDelete(med)}
-                      className="p-1.5 rounded-lg text-[#C34A3E] hover:bg-[#FDF2F0]"
+                      className="p-2 rounded-xl text-[#C34A3E] dark:text-rose-400 hover:bg-[#FDF2F0] dark:hover:bg-rose-950/40 transition-colors"
                       title="Eliminar medicamento"
                     >
                       <Trash2 className="w-4 h-4" />

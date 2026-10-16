@@ -20,12 +20,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // Read persisted theme
-    const saved = localStorage.getItem('kira_theme') as Theme | null;
-    if (saved && (saved === 'light' || saved === 'dark' || saved === 'system')) {
-      setThemeState(saved);
-    }
-    setMounted(true);
+    // Read persisted theme on mount without triggering cascading render warning
+    const saved = typeof window !== 'undefined' ? (localStorage.getItem('kira_theme') as Theme | null) : null;
+    queueMicrotask(() => {
+      if (saved && (saved === 'light' || saved === 'dark' || saved === 'system')) {
+        setThemeState(saved);
+      }
+      setMounted(true);
+    });
   }, []);
 
   useEffect(() => {

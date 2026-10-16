@@ -82,20 +82,20 @@ export function CorrectionModal({ log, isOpen, onClose, onSuccess }: CorrectionM
           </p>
         </div>
 
-        <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#EFECE5]">
+        <div className="grid grid-cols-2 gap-2.5 sm:flex sm:justify-end pt-3 border-t border-[#EFECE5]">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl border border-[#E5E1D6] text-xs font-medium text-[#606763] hover:bg-[#FAF8F5]"
+            className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-[#E5E1D6] text-xs font-semibold text-[#606763] hover:bg-[#FAF8F5] transition-colors"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={submitting || !reason.trim()}
-            className="px-5 py-2 rounded-xl text-xs font-semibold text-white bg-[#3E5A4D] hover:bg-[#32493E] shadow-xs disabled:opacity-50"
+            className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-semibold text-white bg-[#3E5A4D] hover:bg-[#32493E] shadow-xs disabled:opacity-50"
           >
-            Guardar Corrección Auditada
+            Corregir
           </button>
         </div>
       </form>

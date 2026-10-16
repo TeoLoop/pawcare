@@ -1,40 +1,87 @@
 // src/lib/whatsapp/client.ts
-import { MetaSendResult } from '@/types/whatsapp';
+// Alternativas a Meta WhatsApp Cloud API:
+// 1. Direct Click-to-Chat (wa.me): 100% gratuito, sin configuración ni verificación de empresa.
+// 2. CallMeBot API: Notificaciones automáticas a WhatsApp personal con un API key gratuito.
 
-export interface SendReminderMessageParams {
-  toPhone: string;
-  petName: string;
-  medicationName: string;
-  scheduledTime: string; // HH:MM
-  doseInstructions?: string;
-  confirmationUrl: string;
-  useTemplate?: boolean;
+export interface CallMeBotResult {
+  success: boolean;
+  messageId?: string;
+  error?: string;
+  isSimulated?: boolean;
 }
 
-export class WhatsAppCloudApiClient {
-  private static getCredentials() {
-    return {
-      token: process.env.WHATSAPP_API_TOKEN,
-      phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
-      templateName: process.env.WHATSAPP_REMINDER_TEMPLATE_NAME || 'kira_medication_reminder',
-    };
+export interface SendReminderParams {
+  toPhone: string;
+  apiKey?: string;
+  petName: string;
+  medicationName: string;
+  scheduledTime: string;
+  doseInstructions?: string;
+  confirmationUrl: string;
+}
+
+export interface WhatsAppDirectLinkParams {
+  phone?: string;
+  petName: string;
+  medicationName: string;
+  doseAmount?: number | string;
+  doseUnit?: string;
+  scheduledTime: string;
+  instructions?: string;
+  confirmationUrl?: string;
+}
+
+/**
+ * Genera un enlace directo Click-to-Chat de WhatsApp (https://wa.me/).
+ * No requiere registrar ninguna empresa en Meta, ni cuenta comercial ni tokens.
+ * Abre directamente WhatsApp (Web o App) con el mensaje preparado para enviar
+ * a uno mismo (chat personal) o a cualquier familiar / cuidador.
+ */
+export function buildWhatsAppDirectLink(params: WhatsAppDirectLinkParams): string {
+  const lines: string[] = [
+    `🐾 *PawCare* — Recordatorio de medicación`,
+    ``,
+    `🐶 Mascota: *${params.petName}*`,
+    `💊 Medicamento: *${params.medicationName}*` +
+      (params.doseAmount && params.doseUnit ? ` (${params.doseAmount} ${params.doseUnit})` : ''),
+    `⏰ Hora prevista: *${params.scheduledTime} hs*`,
+  ];
+
+  if (params.instructions) {
+    lines.push(`📋 Indicación: ${params.instructions}`);
   }
 
-  public static isConfigured(): boolean {
-    const { token, phoneNumberId } = this.getCredentials();
-    return Boolean(token && phoneNumberId && token.trim() !== '' && phoneNumberId.trim() !== '');
+  if (params.confirmationUrl) {
+    lines.push(``);
+    lines.push(`Registrá la toma aquí: ${params.confirmationUrl}`);
   }
+
+  const encoded = encodeURIComponent(lines.join('\n'));
+  const phone = params.phone ? CallMeBotClient.normalizePhone(params.phone) : '';
+
+  return phone ? `https://wa.me/${phone}?text=${encoded}` : `https://wa.me/?text=${encoded}`;
+}
+
+export class CallMeBotClient {
+  private static readonly BASE_URL = 'https://api.callmebot.com/whatsapp.php';
 
   /**
-   * Normalizes phone number to E.164 without '+' or spaces.
-   * e.g., "+598 99 123 456" -> "59899123456"
+   * Normaliza el número a formato internacional numérico sin '+' ni espacios.
+   * ej: "+598 99 123 456" → "59899123456"
    */
-  public static normalizePhoneNumber(phone: string): string {
+  public static normalizePhone(phone: string): string {
     return phone.replace(/[^0-9]/g, '');
   }
 
   /**
-   * Builds the reminder message text in Spanish according to spec.
+   * Indica si hay teléfono configurado.
+   */
+  public static isConfigured(phone?: string, apiKey?: string): boolean {
+    return Boolean(phone?.trim() && apiKey?.trim());
+  }
+
+  /**
+   * Construye el texto legible para el recordatorio.
    */
   public static buildReminderText(params: {
     petName: string;
@@ -43,121 +90,77 @@ export class WhatsAppCloudApiClient {
     instructions?: string;
     confirmationUrl: string;
   }): string {
-    const instructionLine = params.instructions
-      ? `\n📋 Indicación: ${params.instructions}`
-      : '\n📋 Consultá la pauta registrada antes de administrarla.';
+    const lines = [
+      `*PawCare:* Recordatorio de medicación para ${params.petName}.`,
+      ``,
+      `💊 Tratamiento: ${params.medicationName}`,
+      `⏰ Horario previsto: ${params.scheduledTime} (hora Montevideo)`,
+    ];
 
-    return `*PawCare:* Recordatorio de medicación para ${params.petName}.\n\n` +
-      `💊 Tratamiento: ${params.medicationName}\n` +
-      `⏰ Horario previsto: ${params.scheduledTime}` +
-      `${instructionLine}\n\n` +
-      `Para registrar o consultar la toma, abrí tu enlace seguro:\n${params.confirmationUrl}`;
+    if (params.instructions) {
+      lines.push(`📋 Indicaciones: ${params.instructions}`);
+    }
+
+    lines.push(``);
+    lines.push(`Registrá la toma aquí: ${params.confirmationUrl}`);
+
+    return lines.join('\n');
   }
 
   /**
-   * Sends WhatsApp reminder via official Meta Cloud API.
-   * If credentials are not set, operates in safe simulation mode with full audit trail.
+   * Envía un recordatorio por WhatsApp sin necesitar cuenta de empresa en Meta.
+   * Si no hay API Key configurada, opera en modo de simulación segura sin fallar.
    */
-  public static async sendReminder(params: SendReminderMessageParams): Promise<MetaSendResult> {
-    const { token, phoneNumberId, templateName } = this.getCredentials();
-    const recipient = this.normalizePhoneNumber(params.toPhone);
+  public static async sendReminder(params: SendReminderParams): Promise<CallMeBotResult> {
+    const phone = this.normalizePhone(params.toPhone);
 
-    if (!recipient) {
-      return {
-        success: false,
-        error: 'Número de WhatsApp de destino inválido o vacío.',
-      };
+    if (!phone) {
+      return { success: false, error: 'Número de teléfono inválido o vacío.' };
     }
 
-    // Development / Safe Simulation Mode
-    if (!token || !phoneNumberId) {
-      console.info(
-        `[WhatsApp Cloud API - MODO SIMULACIÓN]\nDestino: ${recipient}\nMascota: ${params.petName}\nMedicamento: ${params.medicationName}\nHora: ${params.scheduledTime}\nEnlace: ${params.confirmationUrl}`
-      );
+    // Modo simulación si no se configuró API Key personal de CallMeBot
+    if (!params.apiKey?.trim()) {
       return {
         success: true,
         isSimulated: true,
-        messageId: `sim-wamid-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+        messageId: `sim-wamid-${Date.now()}`,
       };
     }
 
-    const apiUrl = `https://graph.facebook.com/v20.0/${phoneNumberId}/messages`;
+    const text = this.buildReminderText({
+      petName: params.petName,
+      medicationName: params.medicationName,
+      scheduledTime: params.scheduledTime,
+      instructions: params.doseInstructions,
+      confirmationUrl: params.confirmationUrl,
+    });
 
-    let payload: Record<string, unknown>;
-
-    if (params.useTemplate) {
-      payload = {
-        messaging_product: 'whatsapp',
-        recipient_type: 'individual',
-        to: recipient,
-        type: 'template',
-        template: {
-          name: templateName,
-          language: { code: 'es' },
-          components: [
-            {
-              type: 'body',
-              parameters: [
-                { type: 'text', text: params.petName },
-                { type: 'text', text: params.medicationName },
-                { type: 'text', text: params.scheduledTime },
-                { type: 'text', text: params.confirmationUrl },
-              ],
-            },
-          ],
-        },
-      };
-    } else {
-      payload = {
-        messaging_product: 'whatsapp',
-        recipient_type: 'individual',
-        to: recipient,
-        type: 'text',
-        text: {
-          preview_url: true,
-          body: this.buildReminderText({
-            petName: params.petName,
-            medicationName: params.medicationName,
-            scheduledTime: params.scheduledTime,
-            instructions: params.doseInstructions,
-            confirmationUrl: params.confirmationUrl,
-          }),
-        },
-      };
-    }
+    const encodedText = encodeURIComponent(text);
+    const url = `${this.BASE_URL}?phone=${phone}&text=${encodedText}&apikey=${params.apiKey.trim()}`;
 
     try {
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
+      const response = await fetch(url, { method: 'GET' });
+      const body = await response.text();
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        const errorMsg = data?.error?.message || `HTTP ${response.status}: Error al enviar mensaje`;
+      if (!response.ok || body.toLowerCase().includes('error')) {
         return {
           success: false,
-          error: errorMsg,
+          error: `CallMeBot error (${response.status}): ${body.substring(0, 120)}`,
         };
       }
 
-      const messageId = data?.messages?.[0]?.id;
+      console.info(`[CallMeBot] Mensaje enviado a ${phone}: ${params.medicationName}`);
       return {
         success: true,
-        messageId: messageId || `wamid-${Date.now()}`,
+        messageId: `callmebot-${Date.now()}`,
         isSimulated: false,
       };
     } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : 'Error desconocido al contactar Meta API';
-      return {
-        success: false,
-        error: errorMsg,
-      };
+      const msg = err instanceof Error ? err.message : 'Error de conexión con CallMeBot';
+      return { success: false, error: msg };
     }
   }
 }
+
+// Compatibilidad hacia atrás
+export const WhatsAppCloudApiClient = CallMeBotClient;

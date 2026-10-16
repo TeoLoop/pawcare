@@ -18,18 +18,20 @@ export function ConfirmarClient({ token }: { token: string }) {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!token) {
-      setLoading(false);
-      return;
-    }
+    queueMicrotask(() => {
+      if (!token) {
+        setLoading(false);
+        return;
+      }
 
-    const matchedDose = KiraRepository.getDoseByConfirmationToken(token);
-    if (matchedDose) {
-      setDose(matchedDose);
-    } else {
-      setAlreadyProcessed(true);
-    }
-    setLoading(false);
+      const matchedDose = KiraRepository.getDoseByConfirmationToken(token);
+      if (matchedDose) {
+        setDose(matchedDose);
+      } else {
+        setAlreadyProcessed(true);
+      }
+      setLoading(false);
+    });
   }, [token]);
 
   const handleConfirm = (status: 'administered' | 'skipped') => {

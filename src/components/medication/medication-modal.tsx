@@ -49,42 +49,44 @@ export function MedicationModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (medicationToEdit) {
-      setName(medicationToEdit.name);
-      setActiveSubstance(medicationToEdit.active_substance || '');
-      setPresentation(medicationToEdit.presentation);
-      setDoseAmount(medicationToEdit.dose_amount);
-      setDoseUnit(medicationToEdit.dose_unit);
-      setInstructions(medicationToEdit.instructions || '');
-      setNotes(medicationToEdit.notes || '');
-      setTrackInventory(medicationToEdit.track_inventory);
-      setCurrentStock(medicationToEdit.current_stock);
-      setLowStockThreshold(medicationToEdit.low_stock_threshold);
+    queueMicrotask(() => {
+      if (medicationToEdit) {
+        setName(medicationToEdit.name);
+        setActiveSubstance(medicationToEdit.active_substance || '');
+        setPresentation(medicationToEdit.presentation);
+        setDoseAmount(medicationToEdit.dose_amount);
+        setDoseUnit(medicationToEdit.dose_unit);
+        setInstructions(medicationToEdit.instructions || '');
+        setNotes(medicationToEdit.notes || '');
+        setTrackInventory(medicationToEdit.track_inventory);
+        setCurrentStock(medicationToEdit.current_stock);
+        setLowStockThreshold(medicationToEdit.low_stock_threshold);
 
-      if (medicationToEdit.schedule) {
-        setFrequencyType(medicationToEdit.schedule.frequency_type);
-        setTimesOfDay(medicationToEdit.schedule.times_of_day);
-        setSelectedDays(medicationToEdit.schedule.days_of_week || [1, 2, 3, 4, 5, 6, 0]);
-        setStartDate(medicationToEdit.schedule.start_date);
-        setEndDate(medicationToEdit.schedule.end_date || '');
+        if (medicationToEdit.schedule) {
+          setFrequencyType(medicationToEdit.schedule.frequency_type);
+          setTimesOfDay(medicationToEdit.schedule.times_of_day);
+          setSelectedDays(medicationToEdit.schedule.days_of_week || [1, 2, 3, 4, 5, 6, 0]);
+          setStartDate(medicationToEdit.schedule.start_date);
+          setEndDate(medicationToEdit.schedule.end_date || '');
+        }
+      } else {
+        setName('');
+        setActiveSubstance('');
+        setPresentation('Comprimidos masticables');
+        setDoseAmount(1);
+        setDoseUnit('comprimido');
+        setInstructions('');
+        setNotes('');
+        setFrequencyType('daily');
+        setTimesOfDay(['08:00']);
+        setSelectedDays([1, 2, 3, 4, 5, 6, 0]);
+        setStartDate(getLocalDateString());
+        setEndDate('');
+        setTrackInventory(true);
+        setCurrentStock(30);
+        setLowStockThreshold(5);
       }
-    } else {
-      setName('');
-      setActiveSubstance('');
-      setPresentation('Comprimidos masticables');
-      setDoseAmount(1);
-      setDoseUnit('comprimido');
-      setInstructions('');
-      setNotes('');
-      setFrequencyType('daily');
-      setTimesOfDay(['08:00']);
-      setSelectedDays([1, 2, 3, 4, 5, 6, 0]);
-      setStartDate(getLocalDateString());
-      setEndDate('');
-      setTrackInventory(true);
-      setCurrentStock(30);
-      setLowStockThreshold(5);
-    }
+    });
   }, [medicationToEdit, isOpen]);
 
   // Generate live schedule preview
@@ -414,7 +416,7 @@ export function MedicationModal({
           </div>
 
           {trackInventory && (
-            <div className="grid grid-cols-2 gap-3 pt-2 border-t border-[#EFECE5]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-[#EFECE5]">
               <div>
                 <label className="block text-[11px] font-medium text-[#606763] mb-1">
                   Cantidad actual disponible
@@ -447,20 +449,20 @@ export function MedicationModal({
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#EFECE5]">
+        <div className="grid grid-cols-2 gap-2.5 sm:flex sm:justify-end pt-3 border-t border-[#EFECE5]">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl border border-[#E5E1D6] text-xs font-medium text-[#606763] hover:bg-[#FAF8F5] transition-colors"
+            className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-[#E5E1D6] text-xs font-semibold text-[#606763] hover:bg-[#FAF8F5] transition-colors"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={isSubmitting}
-            className="px-5 py-2 rounded-xl text-xs font-semibold text-white bg-[#3E5A4D] hover:bg-[#32493E] transition-all shadow-xs disabled:opacity-50"
+            className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-semibold text-white bg-[#3E5A4D] hover:bg-[#32493E] transition-all shadow-xs disabled:opacity-50"
           >
-            {medicationToEdit ? 'Guardar Cambios' : 'Crear Pauta de Medicación'}
+            {medicationToEdit ? 'Guardar Cambios' : 'Crear Pauta'}
           </button>
         </div>
       </form>

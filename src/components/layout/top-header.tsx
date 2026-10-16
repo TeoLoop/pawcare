@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { formatInMontevideo } from '@/lib/date-utils';
 import { MessageSquare, User, ChevronDown, RefreshCw, Settings, LogOut, ShieldCheck } from 'lucide-react';
 import { KiraRepository } from '@/lib/storage/repository';
@@ -22,17 +23,20 @@ export function TopHeader() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [activePet, setActivePet] = useState<Pet | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(CloudSyncService.getStatus());
+  const router = useRouter();
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Current date formatted in Spanish
-    const dateFormatted = formatInMontevideo(new Date(), "EEEE, d 'de' MMMM");
-    setCurrentDateStr(dateFormatted.charAt(0).toUpperCase() + dateFormatted.slice(1));
+    queueMicrotask(() => {
+      // Current date formatted in Spanish
+      const dateFormatted = formatInMontevideo(new Date(), "EEEE, d 'de' MMMM");
+      setCurrentDateStr(dateFormatted.charAt(0).toUpperCase() + dateFormatted.slice(1));
 
-    const settings = KiraRepository.getSettings();
-    setPhone(settings.whatsapp_phone);
-    setRemindersEnabled(settings.reminders_enabled);
-    setActivePet(KiraRepository.getActivePet());
+      const settings = KiraRepository.getSettings();
+      setPhone(settings.whatsapp_phone);
+      setRemindersEnabled(settings.reminders_enabled);
+      setActivePet(KiraRepository.getActivePet());
+    });
 
     CloudSyncService.init().then(() => {
       setSyncStatus(CloudSyncService.getStatus());
@@ -79,38 +83,38 @@ export function TopHeader() {
     await SupabaseAuthService.signOut();
     KiraRepository.clearAllData();
     setIsUserMenuOpen(false);
-    window.location.href = '/login';
+    router.push('/login');
   };
 
   return (
-    <header className="bg-white/80 dark:bg-[#1A1C1B]/90 backdrop-blur-md border-b border-[#E5E1D6] dark:border-stone-800 sticky top-0 z-40 px-4 sm:px-6 py-3.5">
-      <div className="max-w-6xl mx-auto flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+    <header className="bg-white/85 dark:bg-[#1A1C1B]/90 backdrop-blur-md border-b border-[#E5E1D6] dark:border-stone-800 sticky top-0 z-40 px-3.5 sm:px-6 py-2.5 sm:py-3.5">
+      <div className="max-w-5xl mx-auto flex items-center justify-between gap-2 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           {/* Multi-Pet Switcher */}
           <PetSwitcher />
 
           <div>
-            <p className="text-xs text-[#606763] dark:text-stone-400 capitalize hidden sm:block">
+            <p className="text-xs text-[#606763] dark:text-stone-400 capitalize hidden md:block">
               {currentDateStr || 'Hoy'} • Montevideo
             </p>
           </div>
         </div>
 
         {/* Status Indicators & Theme Toggle */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           {/* Supabase Cloud Connection Status */}
           {syncStatus.isAuthenticated ? (
             <div className="relative" ref={userMenuRef}>
               <button
                 type="button"
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors shadow-2xs"
+                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full border text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors shadow-2xs"
                 title={`Conectado a Supabase (${syncStatus.userEmail})`}
                 aria-expanded={isUserMenuOpen}
               >
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="truncate max-w-[120px]">{syncStatus.userEmail?.split('@')[0]}</span>
-                <ChevronDown className={`w-3 h-3 text-emerald-700 dark:text-emerald-400 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                <span className="truncate max-w-[80px] sm:max-w-[120px]">{syncStatus.userEmail?.split('@')[0]}</span>
+                <ChevronDown className={`w-3 h-3 text-emerald-700 dark:text-emerald-400 transition-transform shrink-0 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {isUserMenuOpen && (
@@ -190,14 +194,16 @@ export function TopHeader() {
             <button
               type="button"
               onClick={() => setIsAuthModalOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-[#3E5A4D] hover:bg-[#32493E] text-white shadow-xs transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-[#3E5A4D] hover:bg-[#32493E] text-white shadow-xs transition-colors shrink-0"
             >
               <User className="w-3.5 h-3.5" />
-              <span>Iniciar Sesión / Crear Cuenta</span>
+              <span className="hidden sm:inline">Iniciar Sesión</span>
+              <span className="sm:hidden">Entrar</span>
             </button>
           )}
 
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#FAF8F5] dark:bg-stone-800/60 border border-[#E5E1D6] dark:border-stone-700 text-xs">
+          {/* Recordatorios badge on desktop */}
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#FAF8F5] dark:bg-stone-800/60 border border-[#E5E1D6] dark:border-stone-700 text-xs">
             <MessageSquare className="w-3.5 h-3.5 text-[#3E5A4D] dark:text-sage-400" />
             <span className="hidden md:inline text-[#606763] dark:text-stone-400">Recordatorios:</span>
             <span

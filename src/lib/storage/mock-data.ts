@@ -26,6 +26,7 @@ export const INITIAL_SETTINGS: UserSettings = {
   pet_id: '',
   timezone: 'America/Montevideo',
   whatsapp_phone: '',
+  callmebot_api_key: '',
   reminders_enabled: true,
   advance_notice_minutes: 15,
   pending_dose_alert: true,

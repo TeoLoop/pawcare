@@ -1,6 +1,6 @@
 // src/lib/whatsapp/scheduler.ts
 import { KiraRepository } from '@/lib/storage/repository';
-import { WhatsAppCloudApiClient } from './client';
+import { CallMeBotClient } from './client';
 import { buildDoseIdempotencyKey } from './token';
 import { NotificationJob, NotificationAttempt } from '@/types/whatsapp';
 
@@ -12,7 +12,6 @@ export interface DispatchResult {
     jobId: string;
     scheduledDoseId: string;
     status: string;
-    isSimulated?: boolean;
     error?: string;
   }>;
 }
@@ -20,7 +19,7 @@ export interface DispatchResult {
 export class NotificationScheduler {
   /**
    * Enqueues a notification job for a scheduled dose if one does not already exist.
-   * Strictly uses idempotency key to prevent duplication.
+   * Uses idempotency key to prevent duplication.
    */
   public static enqueueReminderForDose(scheduledDoseId: string): NotificationJob | null {
     const doses = KiraRepository.getScheduledDoses();
@@ -32,16 +31,14 @@ export class NotificationScheduler {
 
     const idempotencyKey = buildDoseIdempotencyKey(dose.id, dose.scheduled_for);
 
-    // Check if job already exists with this idempotency key
     const existingJobs = KiraRepository.getNotificationJobs();
     const alreadyEnqueued = existingJobs.find((j) => j.idempotency_key === idempotencyKey);
-    if (alreadyEnqueued) {
-      return alreadyEnqueued;
-    }
+    if (alreadyEnqueued) return alreadyEnqueued;
 
-    // Calculate scheduled send time: scheduled_for - advance_notice_minutes
     const scheduledDate = new Date(dose.scheduled_for);
-    const sendAtDate = new Date(scheduledDate.getTime() - (settings.advance_notice_minutes || 15) * 60 * 1000);
+    const sendAtDate = new Date(
+      scheduledDate.getTime() - (settings.advance_notice_minutes || 15) * 60 * 1000
+    );
 
     const now = new Date().toISOString();
     const newJob: NotificationJob = {
@@ -63,7 +60,7 @@ export class NotificationScheduler {
   }
 
   /**
-   * Enqueues reminders for all upcoming doses today and tomorrow.
+   * Enqueues reminders for all upcoming pending/scheduled doses.
    */
   public static enqueueUpcomingDoses(): number {
     const doses = KiraRepository.getScheduledDoses();
@@ -78,13 +75,14 @@ export class NotificationScheduler {
   }
 
   /**
-   * Processes all pending and retryable notification jobs.
+   * Processes all pending notification jobs and dispatches via CallMeBot.
    */
   public static async processPendingJobs(): Promise<DispatchResult> {
     const jobs = KiraRepository.getNotificationJobs();
     const now = new Date();
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     const pet = KiraRepository.getPet();
+    const settings = KiraRepository.getSettings();
 
     const result: DispatchResult = {
       processedCount: 0,
@@ -93,7 +91,6 @@ export class NotificationScheduler {
       details: [],
     };
 
-    // Filter jobs that are ready to send and haven't exceeded max attempts
     const eligibleJobs = jobs.filter((job) => {
       if (job.status !== 'pending' && job.status !== 'failed') return false;
       if (job.attempts_count >= job.max_attempts) return false;
@@ -114,9 +111,7 @@ export class NotificationScheduler {
       }
 
       // Check quiet hours
-      const settings = KiraRepository.getSettings();
       if (settings.quiet_hours_enabled && settings.quiet_hours_start && settings.quiet_hours_end) {
-        // e.g. "23:00" - "07:00"
         const currentHourMin = now.toLocaleTimeString('es-UY', {
           timeZone: 'America/Montevideo',
           hour: '2-digit',
@@ -128,19 +123,17 @@ export class NotificationScheduler {
             ? currentHourMin >= settings.quiet_hours_start || currentHourMin <= settings.quiet_hours_end
             : currentHourMin >= settings.quiet_hours_start && currentHourMin <= settings.quiet_hours_end;
 
-        if (isQuiet) {
-          // Postpone until quiet hours end
-          continue;
-        }
+        if (isQuiet) continue;
       }
 
       const attemptNumber = job.attempts_count + 1;
       const confirmationToken = dose.confirmation_token || 'direct';
       const confirmationUrl = `${appUrl}/confirmar-toma/${confirmationToken}`;
 
-      // Dispatch via Meta Cloud API
-      const sendResult = await WhatsAppCloudApiClient.sendReminder({
+      // Dispatch via CallMeBot
+      const sendResult = await CallMeBotClient.sendReminder({
         toPhone: job.recipient_phone,
+        apiKey: settings.callmebot_api_key || '',
         petName: pet.name,
         medicationName: dose.medication.name,
         scheduledTime: dose.scheduled_time,
@@ -156,7 +149,6 @@ export class NotificationScheduler {
           status: 'sent',
           attempts_count: attemptNumber,
           last_attempt_at: attemptTime,
-          meta_message_id: sendResult.messageId,
           failure_reason: undefined,
         });
 
@@ -166,20 +158,12 @@ export class NotificationScheduler {
           attempt_number: attemptNumber,
           attempted_at: attemptTime,
           status: 'success',
-          response_payload: {
-            messageId: sendResult.messageId,
-            isSimulated: sendResult.isSimulated ?? false,
-          },
+          response_payload: { provider: 'callmebot' },
           created_at: attemptTime,
         };
         KiraRepository.addNotificationAttempt(attempt);
 
-        result.details.push({
-          jobId: job.id,
-          scheduledDoseId: job.scheduled_dose_id,
-          status: 'sent',
-          isSimulated: sendResult.isSimulated,
-        });
+        result.details.push({ jobId: job.id, scheduledDoseId: job.scheduled_dose_id, status: 'sent' });
       } else {
         result.failureCount++;
         const isTerminal = attemptNumber >= job.max_attempts;

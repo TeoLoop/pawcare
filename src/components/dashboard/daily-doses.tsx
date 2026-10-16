@@ -3,9 +3,11 @@
 
 import React, { useState } from 'react';
 import { ScheduledDose, DoseStatus } from '@/types/medication';
-import { Clock, CheckCircle2, XCircle, AlertTriangle, Pill } from 'lucide-react';
+import { Clock, CheckCircle2, XCircle, AlertTriangle, Pill, MessageSquare } from 'lucide-react';
 import { DoseActionModal } from './dose-action-modal';
 import { cn } from '@/lib/utils';
+import { buildWhatsAppDirectLink } from '@/lib/whatsapp/client';
+import { KiraRepository } from '@/lib/storage/repository';
 
 interface DailyDosesProps {
   doses: ScheduledDose[];
@@ -122,13 +124,34 @@ export function DailyDoses({ doses, onRefresh }: DailyDosesProps) {
                 </div>
               </div>
 
-              {/* Action Button */}
-              <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0 pt-2.5 sm:pt-0 border-t sm:border-t-0 border-[#EFECE5] dark:border-stone-800 shrink-0">
+                {isActionable && (
+                  <a
+                    href={buildWhatsAppDirectLink({
+                      phone: KiraRepository.getSettings().whatsapp_phone,
+                      petName: KiraRepository.getActivePet()?.name || 'Mascota',
+                      medicationName: dose.medication?.name || '',
+                      doseAmount: dose.dose_amount,
+                      doseUnit: dose.dose_unit,
+                      scheduledTime: dose.scheduled_time,
+                      instructions: dose.medication?.instructions,
+                    })}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 text-xs font-semibold transition-colors shadow-2xs"
+                    title="Abrir WhatsApp con el recordatorio listo para enviar"
+                  >
+                    <MessageSquare className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span>WhatsApp</span>
+                  </a>
+                )}
+
                 {isActionable ? (
                   <button
                     type="button"
                     onClick={() => setSelectedDose(dose)}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#3E5A4D] hover:bg-[#32493E] text-white text-xs font-semibold transition-all shadow-xs"
+                    className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2 sm:py-1.5 rounded-xl bg-[#3E5A4D] hover:bg-[#32493E] text-white text-xs font-semibold transition-all shadow-xs"
                   >
                     Registrar toma
                   </button>
@@ -136,7 +159,7 @@ export function DailyDoses({ doses, onRefresh }: DailyDosesProps) {
                   <button
                     type="button"
                     onClick={() => setSelectedDose(dose)}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-medium text-[#606763] hover:bg-[#FAF8F5] transition-colors"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-1 px-3 py-2 sm:py-1.5 rounded-xl text-xs font-medium text-[#606763] hover:bg-[#FAF8F5] dark:text-stone-400 dark:hover:bg-stone-800 transition-colors"
                   >
                     Ver detalle
                   </button>

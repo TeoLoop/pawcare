@@ -1,11 +1,23 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { AppShell } from '@/components/layout/app-shell';
 import { ThemeProvider } from '@/components/theme/theme-provider';
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#FAF8F5' },
+    { media: '(prefers-color-scheme: dark)', color: '#141715' },
+  ],
+};
+
 export const metadata: Metadata = {
   title: 'PawCare — Gestión de Salud y Medicación de Mascotas',
-  description: 'Aplicación para gestionar medicamentos, recordatorios fiables de WhatsApp y seguimiento de salud de tus mascotas.',
+  description: 'Aplicación para gestionar medicamentos, recordatorios prácticos de WhatsApp y seguimiento de salud de tus mascotas.',
   icons: {
     icon: '/icon.svg',
     shortcut: '/icon.svg',
@@ -20,7 +32,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es" className="h-full antialiased" suppressHydrationWarning>
-      <body className="min-h-full flex flex-col font-sans" suppressHydrationWarning>
+      <body className="min-h-full flex flex-col font-sans overflow-x-hidden selection:bg-[#E9EFEA] selection:text-[#274033]" suppressHydrationWarning>
         <ThemeProvider>
           <AppShell>{children}</AppShell>
         </ThemeProvider>
