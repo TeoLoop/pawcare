@@ -7,6 +7,7 @@ import { SymptomLog } from '@/types/health';
 import { VetVisit, MedicalDocument } from '@/types/veterinary';
 import { SymptomFormModal } from '@/components/health/symptom-form-modal';
 import { VetVisitModal } from '@/components/veterinary/vet-visit-modal';
+import { DocumentModal } from '@/components/veterinary/document-modal';
 import { generateVeterinarySummaryPdf } from '@/lib/pdf/export-summary';
 import { formatInMontevideo } from '@/lib/date-utils';
 import {
@@ -25,12 +26,20 @@ export default function SaludPage() {
   const [documents, setDocuments] = useState<MedicalDocument[]>([]);
   const [isSymptomModalOpen, setIsSymptomModalOpen] = useState(false);
   const [isVetVisitModalOpen, setIsVetVisitModalOpen] = useState(false);
+  const [isDocModalOpen, setIsDocModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'symptoms' | 'vet' | 'documents'>('symptoms');
 
   const loadData = () => {
     setSymptoms(KiraRepository.getSymptomLogs());
     setVetVisits(KiraRepository.getVetVisits());
     setDocuments(KiraRepository.getDocuments());
+  };
+
+  const handleDeleteDocument = (id: string, title: string) => {
+    if (confirm(`¿Estás seguro de eliminar el documento "${title}"?`)) {
+      KiraRepository.deleteDocument(id);
+      loadData();
+    }
   };
 
   useEffect(() => {
@@ -162,6 +171,17 @@ export default function SaludPage() {
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Nueva Consulta</span>
+          </button>
+        )}
+
+        {activeTab === 'documents' && (
+          <button
+            type="button"
+            onClick={() => setIsDocModalOpen(true)}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#3E5A4D] hover:bg-[#32493E] text-white text-xs font-semibold shadow-xs shrink-0"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Subir Documento (PDF / Word)</span>
           </button>
         )}
       </div>
@@ -337,25 +357,117 @@ export default function SaludPage() {
       {/* Tab 3: Medical Documents */}
       {activeTab === 'documents' && (
         <div className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {documents.map((doc) => (
-              <div
-                key={doc.id}
-                className="bg-white dark:bg-stone-900 rounded-2xl border border-[#E5E1D6] dark:border-stone-800 p-4 shadow-xs flex items-center justify-between"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[#E9EFEA] dark:bg-emerald-950/40 text-[#3E5A4D] dark:text-emerald-400 flex items-center justify-center shrink-0">
-                    <FileText className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-[#222624] dark:text-stone-100">{doc.title}</h4>
-                    <p className="text-[11px] text-[#606763] dark:text-stone-400">{doc.document_date} • {doc.document_type}</p>
-                    {doc.notes && <p className="text-[10px] text-[#606763] dark:text-stone-400 italic mt-0.5">{doc.notes}</p>}
-                  </div>
-                </div>
+          {documents.length === 0 ? (
+            <div className="bg-white dark:bg-stone-900 rounded-2xl sm:rounded-3xl border border-[#E5E1D6] dark:border-stone-800 p-8 sm:p-12 text-center shadow-xs">
+              <div className="w-12 h-12 rounded-2xl bg-[#E9EFEA] dark:bg-emerald-950/40 text-[#3E5A4D] dark:text-emerald-400 flex items-center justify-center mx-auto mb-3">
+                <FileText className="w-6 h-6" />
               </div>
-            ))}
-          </div>
+              <h3 className="text-base font-semibold text-[#222624] dark:text-stone-100">
+                Aún no hay documentos médicos guardados
+              </h3>
+              <p className="text-xs text-[#606763] dark:text-stone-400 mt-1 max-w-sm mx-auto">
+                Subí recetas médicas, análisis clínicos, radiografías o informes en <strong>PDF o Word (DOCX)</strong> para tener todo el historial clínico en un solo lugar.
+              </p>
+              <button
+                type="button"
+                onClick={() => setIsDocModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 mt-4 rounded-xl bg-[#3E5A4D] hover:bg-[#32493E] text-white text-xs font-semibold shadow-xs transition-all"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Subir primer documento</span>
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {documents.map((doc) => {
+                const ext = doc.file_name ? doc.file_name.split('.').pop()?.toLowerCase() || '' : '';
+                const isPdf = ext === 'pdf';
+                const isWord = ext === 'doc' || ext === 'docx';
+                const isImage = ['png', 'jpg', 'jpeg', 'webp'].includes(ext);
+
+                const getDocTypeLabel = (type: string) => {
+                  switch (type) {
+                    case 'prescription': return 'Receta médica';
+                    case 'lab_result': return 'Resultado de laboratorio';
+                    case 'xray': return 'Estudios / Imágenes';
+                    case 'discharge_summary': return 'Alta médica / Epicrisis';
+                    default: return 'Otro documento';
+                  }
+                };
+
+                return (
+                  <div
+                    key={doc.id}
+                    className="bg-white dark:bg-stone-900 rounded-2xl sm:rounded-3xl border border-[#E5E1D6] dark:border-stone-800 p-4 sm:p-5 shadow-xs flex flex-col justify-between gap-3 hover:border-[#3E5A4D]/40 transition-colors"
+                  >
+                    <div>
+                      <div className="flex items-start justify-between gap-3 mb-2.5">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div
+                            className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
+                              isPdf
+                                ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
+                                : isWord
+                                ? 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border border-sky-200 dark:border-sky-800'
+                                : isImage
+                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                                : 'bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-300'
+                            }`}
+                          >
+                            <span className="uppercase text-[10px] tracking-tight">{ext || 'DOC'}</span>
+                          </div>
+                          <div className="min-w-0">
+                            <h4 className="text-sm font-bold text-[#222624] dark:text-stone-100 truncate">
+                              {doc.title}
+                            </h4>
+                            <p className="text-xs text-[#606763] dark:text-stone-400 mt-0.5">
+                              {getDocTypeLabel(doc.document_type)}
+                            </p>
+                          </div>
+                        </div>
+
+                        <span className="text-[11px] font-semibold text-[#606763] dark:text-stone-400 px-2 py-0.5 rounded-md bg-[#FAF8F5] dark:bg-stone-800 border border-[#E5E1D6] dark:border-stone-700 shrink-0">
+                          {doc.document_date ? formatInMontevideo(doc.document_date, 'dd/MM/yyyy') : 'Sin fecha'}
+                        </span>
+                      </div>
+
+                      {doc.notes && (
+                        <p className="text-xs text-[#606763] dark:text-stone-400 bg-[#FAF8F5] dark:bg-stone-850 p-2.5 rounded-xl border border-[#EFECE5] dark:border-stone-750 mb-3">
+                          {doc.notes}
+                        </p>
+                      )}
+
+                      <p className="text-[11px] text-[#8E9490] dark:text-stone-400 truncate mb-1">
+                        Archivo: <span className="font-medium text-[#222624] dark:text-stone-300">{doc.file_name}</span>
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2.5 border-t border-[#EFECE5] dark:border-stone-800">
+                      <a
+                        href={doc.file_url}
+                        download={doc.file_name}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#E9EFEA] hover:bg-[#D8E6DB] text-[#274033] dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 dark:text-emerald-300 text-xs font-semibold transition-colors shadow-2xs"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Descargar / Abrir</span>
+                      </a>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteDocument(doc.id, doc.title)}
+                        className="p-1.5 rounded-lg text-[#C34A3E] dark:text-rose-400 hover:bg-[#FDF2F0] dark:hover:bg-rose-950/40 transition-colors"
+                        title="Eliminar documento"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -369,6 +481,12 @@ export default function SaludPage() {
       <VetVisitModal
         isOpen={isVetVisitModalOpen}
         onClose={() => setIsVetVisitModalOpen(false)}
+        onSuccess={loadData}
+      />
+
+      <DocumentModal
+        isOpen={isDocModalOpen}
+        onClose={() => setIsDocModalOpen(false)}
         onSuccess={loadData}
       />
     </div>

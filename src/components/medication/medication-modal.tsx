@@ -177,8 +177,18 @@ export function MedicationModal({
       title={medicationToEdit ? 'Editar Medicamento' : `Añadir Medicamento para ${KiraRepository.getActivePet().name}`}
       description="Prescripción veterinaria, horarios y control de existencias"
       maxWidth="max-w-2xl"
+      headerAction={
+        <button
+          form="medication-form"
+          type="submit"
+          disabled={isSubmitting}
+          className="inline-flex items-center justify-center px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-[#3E5A4D] hover:bg-[#32493E] transition-all shadow-xs disabled:opacity-50"
+        >
+          {isSubmitting ? 'Guardando...' : 'Guardar'}
+        </button>
+      }
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form id="medication-form" onSubmit={handleSubmit} className="space-y-4">
         {/* Basic Info */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>

@@ -22,7 +22,7 @@ export class NotificationScheduler {
    * Uses idempotency key to prevent duplication.
    */
   public static enqueueReminderForDose(scheduledDoseId: string): NotificationJob | null {
-    const doses = KiraRepository.getScheduledDoses();
+    const doses = KiraRepository.getScheduledDoses('all');
     const dose = doses.find((d) => d.id === scheduledDoseId);
     if (!dose || !dose.medication) return null;
 
@@ -100,7 +100,7 @@ export class NotificationScheduler {
 
     for (const job of eligibleJobs) {
       result.processedCount++;
-      const dose = KiraRepository.getScheduledDoses().find((d) => d.id === job.scheduled_dose_id);
+      const dose = KiraRepository.getScheduledDoses('all').find((d) => d.id === job.scheduled_dose_id);
 
       if (!dose || !dose.medication) {
         KiraRepository.updateNotificationJob(job.id, {

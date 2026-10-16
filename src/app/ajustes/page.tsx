@@ -220,7 +220,7 @@ export default function AjustesPage() {
       activePetId: KiraRepository.getActivePetId(),
       settings: KiraRepository.getSettings(),
       medications: KiraRepository.getMedications('all'),
-      scheduledDoses: KiraRepository.getScheduledDoses(undefined, 'all'),
+      scheduledDoses: KiraRepository.getScheduledDoses('all', 'all'),
       doseLogs: KiraRepository.getDoseHistory({ petId: 'all' }),
       symptoms: KiraRepository.getSymptomLogs('all'),
       vetVisits: KiraRepository.getVetVisits('all'),

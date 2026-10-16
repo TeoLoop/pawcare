@@ -450,17 +450,23 @@ export class KiraRepository {
     if (newDoses.length > 0) {
       memoryState.scheduledDoses = [...memoryState.scheduledDoses, ...newDoses];
       saveToStorage(STORAGE_KEYS.DOSES, memoryState.scheduledDoses);
+
+      if (isClient() && isLiveSupabaseConfigured()) {
+        SupabaseCloudRepository.upsertScheduledDoses(newDoses).catch((err) =>
+          console.warn('[CloudSync] upsertScheduledDoses cloud error:', err)
+        );
+      }
     }
   }
 
   // --- SCHEDULED DOSES & ACTIONS ---
-  static getScheduledDoses(date?: string, petId?: string): ScheduledDose[] {
+  static getScheduledDoses(date?: string | 'all', petId?: string): ScheduledDose[] {
     this.init();
-    const targetDate = date || getLocalDateString();
+    const targetDate = date === undefined ? getLocalDateString() : date;
     const targetPetId = petId || memoryState.activePetId;
     
     return memoryState.scheduledDoses
-      .filter((d) => (!date || d.scheduled_date === targetDate) && (targetPetId === 'all' || d.pet_id === targetPetId))
+      .filter((d) => (targetDate === 'all' || d.scheduled_date === targetDate) && (targetPetId === 'all' || d.pet_id === targetPetId))
       .map((d) => {
         const med = memoryState.medications.find((m) => m.id === d.medication_id);
         const log = memoryState.doseLogs.find((l) => l.scheduled_dose_id === d.id);

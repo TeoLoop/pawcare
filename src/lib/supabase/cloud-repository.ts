@@ -333,6 +333,38 @@ export class SupabaseCloudRepository {
     return true;
   }
 
+  static async upsertScheduledDoses(doses: ScheduledDose[]): Promise<boolean> {
+    if (!isLiveSupabaseConfigured() || doses.length === 0) return false;
+    const validDoses = doses
+      .filter((d) => isUuid(d.id) && isUuid(d.pet_id) && isUuid(d.medication_id))
+      .map((d) => ({
+        id: d.id,
+        pet_id: d.pet_id,
+        medication_id: d.medication_id,
+        schedule_id: isUuid(d.schedule_id) ? d.schedule_id : null,
+        scheduled_for: d.scheduled_for,
+        scheduled_date: d.scheduled_date,
+        scheduled_time: d.scheduled_time,
+        dose_amount: d.dose_amount,
+        dose_unit: d.dose_unit,
+        status: d.status,
+        confirmation_token: d.confirmation_token || null,
+        token_expires_at: d.token_expires_at || null,
+      }));
+
+    if (validDoses.length === 0) return false;
+
+    const { error } = await this.supabase
+      .from('scheduled_doses')
+      .upsert(validDoses, { onConflict: 'id' });
+
+    if (error) {
+      console.warn('[SupabaseCloud] Error upserting scheduled doses:', error.message);
+      return false;
+    }
+    return true;
+  }
+
   // --- DOSE LOGS ---
   static async getDoseLogs(petId?: string): Promise<DoseLog[]> {
     if (!isLiveSupabaseConfigured()) return [];
@@ -369,17 +401,40 @@ export class SupabaseCloudRepository {
     };
 
     if (log.scheduled_dose_id && isUuid(log.scheduled_dose_id)) {
-      payload.scheduled_dose_id = log.scheduled_dose_id;
+      // Validate scheduled_dose_id exists in Supabase before attaching
+      const { data: doseExists } = await this.supabase
+        .from('scheduled_doses')
+        .select('id')
+        .eq('id', log.scheduled_dose_id)
+        .limit(1);
+
+      if (doseExists && doseExists.length > 0) {
+        payload.scheduled_dose_id = log.scheduled_dose_id;
+      } else {
+        payload.scheduled_dose_id = null;
+      }
     }
     if (log.id && isUuid(log.id)) {
       payload.id = log.id;
     }
 
-    const { data, error } = await this.supabase
+    let { data, error } = await this.supabase
       .from('dose_logs')
       .insert(payload)
       .select()
       .single();
+
+    // Fallback if foreign key constraint triggers
+    if (error && (error.code === '23503' || error.message.includes('foreign key constraint')) && payload.scheduled_dose_id) {
+      payload.scheduled_dose_id = null;
+      const retry = await this.supabase
+        .from('dose_logs')
+        .insert(payload)
+        .select()
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) {
       console.error('[SupabaseCloud] Error recording dose log:', error.message);
