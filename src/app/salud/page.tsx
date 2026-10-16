@@ -475,7 +475,7 @@ export default function SaludPage() {
                 Aún no hay documentos ni fotos guardadas
               </h3>
               <p className="text-xs text-[#606763] dark:text-stone-400 mt-1 max-w-sm mx-auto">
-                Subí recetas médicas, fotos de heridas o radiografías, análisis clínicos e informes en <strong>PDF, Word o imagen</strong> agrupados por fecha.
+                Subí recetas médicas, fotos de heridas o radiografías, análisis clínicos e informes (PDF, Word o fotos con la cámara) agrupados por fecha.
               </p>
               <button
                 type="button"
@@ -483,7 +483,7 @@ export default function SaludPage() {
                 className="inline-flex items-center gap-1.5 px-4 py-2 mt-4 rounded-xl bg-[#3E5A4D] hover:bg-[#32493E] text-white text-xs font-semibold shadow-xs transition-all"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Subir primera foto o documento</span>
+                <span>Subir foto o documento</span>
               </button>
             </div>
           ) : (

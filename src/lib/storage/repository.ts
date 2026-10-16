@@ -84,8 +84,23 @@ function saveToStorage<T>(key: string, value: T): void {
   if (!isClient()) return;
   try {
     localStorage.setItem(key, JSON.stringify(value));
-  } catch (err) {
-    console.warn(`Error writing to localStorage key ${key}:`, err);
+  } catch (err: unknown) {
+    // Graceful quota handling: if documents payload has heavy data URLs, strip them for local storage
+    if (key === STORAGE_KEYS.DOCUMENTS && Array.isArray(value)) {
+      try {
+        const lightweight = value.map((d: Record<string, unknown>) => {
+          if (typeof d?.file_url === 'string' && d.file_url.startsWith('data:')) {
+            return { ...d, file_url: '' };
+          }
+          return d;
+        });
+        localStorage.setItem(key, JSON.stringify(lightweight));
+        return;
+      } catch {
+        // Fallback below
+      }
+    }
+    console.warn(`[LocalStorage] Unable to save key ${key} (storage quota full):`, err);
   }
 }
 

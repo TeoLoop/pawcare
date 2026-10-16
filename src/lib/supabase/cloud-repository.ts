@@ -681,6 +681,31 @@ export class SupabaseCloudRepository {
   // --- FILE STORAGE ---
   static async uploadMediaFile(file: File, folder = 'documents'): Promise<{ publicUrl: string; fileName: string } | null> {
     if (!isLiveSupabaseConfigured()) return null;
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', folder);
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.publicUrl) {
+          return {
+            publicUrl: data.publicUrl,
+            fileName: file.name,
+          };
+        }
+      }
+    } catch (err) {
+      console.warn('[SupabaseCloud] Upload via API failed, attempting direct upload:', err);
+    }
+
+    // Direct fallback
     const ext = file.name.split('.').pop() || 'dat';
     const cleanFileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${ext}`;
     const filePath = `${folder}/${cleanFileName}`;
@@ -690,7 +715,7 @@ export class SupabaseCloudRepository {
       .upload(filePath, file);
 
     if (uploadError) {
-      console.error('[SupabaseCloud] Error uploading file:', uploadError.message);
+      console.error('[SupabaseCloud] Error uploading file directly:', uploadError.message);
       return null;
     }
 

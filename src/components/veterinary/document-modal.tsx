@@ -6,6 +6,8 @@ import { Modal } from '@/components/ui/modal';
 import { MedicalDocumentType } from '@/types/veterinary';
 import { KiraRepository } from '@/lib/storage/repository';
 import { getLocalDateString } from '@/lib/date-utils';
+import { isLiveSupabaseConfigured } from '@/lib/supabase/client';
+import { SupabaseCloudRepository } from '@/lib/supabase/cloud-repository';
 import { UploadCloud, FileText, AlertCircle, Camera, Image as ImageIcon } from 'lucide-react';
 
 interface DocumentModalProps {
@@ -23,6 +25,7 @@ const DOCUMENT_TYPES: { id: MedicalDocumentType; label: string }[] = [
 ];
 
 export function DocumentModal({ isOpen, onClose, onSuccess }: DocumentModalProps) {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
   const [documentType, setDocumentType] = useState<MedicalDocumentType>('prescription');
   const [documentDate, setDocumentDate] = useState(getLocalDateString());
@@ -45,6 +48,7 @@ export function DocumentModal({ isOpen, onClose, onSuccess }: DocumentModalProps
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setSelectedFile(file);
     setErrorMessage(null);
 
     // Max 15MB limit for client base64 storage
@@ -91,7 +95,7 @@ export function DocumentModal({ isOpen, onClose, onSuccess }: DocumentModalProps
     reader.readAsDataURL(file);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fileUrl || !fileName) {
       setErrorMessage('Por favor, seleccioná un archivo PDF, DOCX o una foto.');
@@ -102,6 +106,16 @@ export function DocumentModal({ isOpen, onClose, onSuccess }: DocumentModalProps
     setErrorMessage(null);
 
     try {
+      let finalUrl = fileUrl;
+
+      // Upload file directly to Supabase Cloud Storage
+      if (selectedFile && isLiveSupabaseConfigured()) {
+        const uploadRes = await SupabaseCloudRepository.uploadMediaFile(selectedFile, 'documents');
+        if (uploadRes?.publicUrl) {
+          finalUrl = uploadRes.publicUrl;
+        }
+      }
+
       const activePet = KiraRepository.getActivePet();
       KiraRepository.addDocument({
         pet_id: activePet.id,
@@ -109,11 +123,12 @@ export function DocumentModal({ isOpen, onClose, onSuccess }: DocumentModalProps
         document_type: documentType,
         document_date: documentDate,
         file_name: fileName,
-        file_url: fileUrl,
+        file_url: finalUrl,
         notes: notes.trim() || undefined,
       });
 
       // Reset form
+      setSelectedFile(null);
       setTitle('');
       setFileName('');
       setFileUrl('');
