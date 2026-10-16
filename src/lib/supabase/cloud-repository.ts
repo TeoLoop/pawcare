@@ -18,8 +18,8 @@ export class SupabaseCloudRepository {
   }
 
   // --- PETS ---
-  static async getPets(): Promise<Pet[]> {
-    if (!isLiveSupabaseConfigured()) return [];
+  static async getPets(): Promise<Pet[] | null> {
+    if (!isLiveSupabaseConfigured()) return null;
     const { data, error } = await this.supabase
       .from('pets')
       .select('*')
@@ -27,7 +27,7 @@ export class SupabaseCloudRepository {
 
     if (error) {
       console.error('[SupabaseCloud] Error fetching pets:', error.message);
-      return [];
+      return null;
     }
     return data as Pet[];
   }
@@ -106,8 +106,8 @@ export class SupabaseCloudRepository {
   }
 
   // --- MEDICATIONS ---
-  static async getMedications(petId?: string): Promise<Medication[]> {
-    if (!isLiveSupabaseConfigured()) return [];
+  static async getMedications(petId?: string): Promise<Medication[] | null> {
+    if (!isLiveSupabaseConfigured()) return null;
     let query = this.supabase.from('medications').select('*');
     if (petId && isUuid(petId)) {
       query = query.eq('pet_id', petId);
@@ -116,7 +116,7 @@ export class SupabaseCloudRepository {
     const { data: meds, error } = await query.order('name', { ascending: true });
     if (error || !meds) {
       console.error('[SupabaseCloud] Error fetching medications:', error?.message);
-      return [];
+      return null;
     }
 
     // Fetch and attach schedules
@@ -286,8 +286,8 @@ export class SupabaseCloudRepository {
   }
 
   // --- SCHEDULED DOSES ---
-  static async getScheduledDoses(petId?: string): Promise<ScheduledDose[]> {
-    if (!isLiveSupabaseConfigured()) return [];
+  static async getScheduledDoses(petId?: string): Promise<ScheduledDose[] | null> {
+    if (!isLiveSupabaseConfigured()) return null;
     let query = this.supabase.from('scheduled_doses').select('*');
     if (petId && isUuid(petId)) {
       query = query.eq('pet_id', petId);
@@ -295,7 +295,7 @@ export class SupabaseCloudRepository {
     const { data: doses, error } = await query.order('scheduled_for', { ascending: true });
     if (error || !doses) {
       console.error('[SupabaseCloud] Error fetching doses:', error?.message);
-      return [];
+      return null;
     }
 
     const medIds = Array.from(new Set(doses.map((d) => d.medication_id).filter(Boolean)));
@@ -366,8 +366,8 @@ export class SupabaseCloudRepository {
   }
 
   // --- DOSE LOGS ---
-  static async getDoseLogs(petId?: string): Promise<DoseLog[]> {
-    if (!isLiveSupabaseConfigured()) return [];
+  static async getDoseLogs(petId?: string): Promise<DoseLog[] | null> {
+    if (!isLiveSupabaseConfigured()) return null;
     let query = this.supabase.from('dose_logs').select('*');
     if (petId && isUuid(petId)) {
       query = query.eq('pet_id', petId);
@@ -375,7 +375,7 @@ export class SupabaseCloudRepository {
     const { data, error } = await query.order('administered_at', { ascending: false });
     if (error) {
       console.error('[SupabaseCloud] Error fetching dose logs:', error.message);
-      return [];
+      return null;
     }
     return data as DoseLog[];
   }
@@ -444,8 +444,8 @@ export class SupabaseCloudRepository {
   }
 
   // --- SYMPTOMS ---
-  static async getSymptomLogs(petId?: string): Promise<SymptomLog[]> {
-    if (!isLiveSupabaseConfigured()) return [];
+  static async getSymptomLogs(petId?: string): Promise<SymptomLog[] | null> {
+    if (!isLiveSupabaseConfigured()) return null;
     let query = this.supabase.from('symptom_logs').select('*');
     if (petId && isUuid(petId)) {
       query = query.eq('pet_id', petId);
@@ -453,7 +453,7 @@ export class SupabaseCloudRepository {
     const { data, error } = await query.order('logged_at', { ascending: false });
     if (error) {
       console.error('[SupabaseCloud] Error fetching symptoms:', error.message);
-      return [];
+      return null;
     }
     return data as SymptomLog[];
   }
@@ -503,8 +503,8 @@ export class SupabaseCloudRepository {
   }
 
   // --- VET VISITS ---
-  static async getVetVisits(petId?: string): Promise<VetVisit[]> {
-    if (!isLiveSupabaseConfigured()) return [];
+  static async getVetVisits(petId?: string): Promise<VetVisit[] | null> {
+    if (!isLiveSupabaseConfigured()) return null;
     let query = this.supabase.from('vet_visits').select('*');
     if (petId && isUuid(petId)) {
       query = query.eq('pet_id', petId);
@@ -512,7 +512,7 @@ export class SupabaseCloudRepository {
     const { data, error } = await query.order('visit_date', { ascending: false });
     if (error) {
       console.error('[SupabaseCloud] Error fetching vet visits:', error.message);
-      return [];
+      return null;
     }
     return data as VetVisit[];
   }
@@ -561,8 +561,8 @@ export class SupabaseCloudRepository {
   }
 
   // --- MEDICAL DOCUMENTS ---
-  static async getMedicalDocuments(petId?: string): Promise<MedicalDocument[]> {
-    if (!isLiveSupabaseConfigured()) return [];
+  static async getMedicalDocuments(petId?: string): Promise<MedicalDocument[] | null> {
+    if (!isLiveSupabaseConfigured()) return null;
     let query = this.supabase.from('medical_documents').select('*');
     if (petId && isUuid(petId)) {
       query = query.eq('pet_id', petId);
@@ -570,7 +570,7 @@ export class SupabaseCloudRepository {
     const { data, error } = await query.order('document_date', { ascending: false });
     if (error) {
       console.error('[SupabaseCloud] Error fetching medical documents:', error.message);
-      return [];
+      return null;
     }
     return data as MedicalDocument[];
   }

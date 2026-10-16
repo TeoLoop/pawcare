@@ -33,7 +33,7 @@ export function BottomNav() {
               className={cn(
                 'flex-1 flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all duration-200 active:scale-95',
                 isActive
-                  ? 'text-[#274033] dark:text-emerald-300 font-bold'
+                  ? 'text-[#274033] dark:text-[#34D399] font-bold'
                   : 'text-[#8E9490] dark:text-stone-400 hover:text-[#222624] dark:hover:text-stone-200'
               )}
             >
@@ -41,7 +41,7 @@ export function BottomNav() {
                 className={cn(
                   'w-9 h-7 flex items-center justify-center rounded-xl transition-all duration-200',
                   isActive
-                    ? 'bg-[#E9EFEA] dark:bg-emerald-950/70 text-[#3E5A4D] dark:text-emerald-300 scale-105 shadow-2xs'
+                    ? 'bg-[#E9EFEA] dark:bg-emerald-950/70 text-[#3E5A4D] dark:text-[#34D399] dark:shadow-[0_0_12px_rgba(16,185,129,0.3)] scale-105 shadow-2xs'
                     : 'text-[#8E9490] dark:text-stone-400'
                 )}
               >

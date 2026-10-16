@@ -311,42 +311,72 @@ CREATE TABLE IF NOT EXISTS public.pet_guardians (
 
 ALTER TABLE public.pet_guardians ENABLE ROW LEVEL SECURITY;
 
+-- 1. Helper SECURITY DEFINER functions to break circular RLS dependencies
+CREATE OR REPLACE FUNCTION public.is_pet_guardian(p_pet_id UUID, p_user_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+    SELECT EXISTS (
+        SELECT 1 FROM public.pet_guardians
+        WHERE pet_id = p_pet_id AND user_id = p_user_id
+    );
+$$;
+
+CREATE OR REPLACE FUNCTION public.is_pet_owner(p_pet_id UUID, p_user_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+    SELECT EXISTS (
+        SELECT 1 FROM public.pets
+        WHERE id = p_pet_id AND owner_id = p_user_id
+    );
+$$;
+
+CREATE OR REPLACE FUNCTION public.check_user_owns_pet(p_pet_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+    SELECT (
+        EXISTS (
+            SELECT 1 FROM public.pets
+            WHERE id = p_pet_id AND owner_id = auth.uid()
+        ) OR EXISTS (
+            SELECT 1 FROM public.pet_guardians
+            WHERE pet_id = p_pet_id AND user_id = auth.uid()
+        )
+    );
+$$;
+
+-- 2. Policies for pet_guardians table
 DROP POLICY IF EXISTS "Users can view guardians of their pets" ON public.pet_guardians;
 CREATE POLICY "Users can view guardians of their pets"
     ON public.pet_guardians FOR SELECT
     USING (
-        user_id = auth.uid() OR
-        EXISTS (SELECT 1 FROM public.pets WHERE pets.id = pet_guardians.pet_id AND pets.owner_id = auth.uid())
+        user_id = auth.uid() OR public.is_pet_owner(pet_id, auth.uid())
     );
 
 DROP POLICY IF EXISTS "Owners can add guardians to their pets" ON public.pet_guardians;
 CREATE POLICY "Owners can add guardians to their pets"
     ON public.pet_guardians FOR INSERT
     WITH CHECK (
-        EXISTS (SELECT 1 FROM public.pets WHERE pets.id = pet_guardians.pet_id AND pets.owner_id = auth.uid())
+        public.is_pet_owner(pet_id, auth.uid())
     );
 
 DROP POLICY IF EXISTS "Owners and guardians can remove membership" ON public.pet_guardians;
 CREATE POLICY "Owners and guardians can remove membership"
     ON public.pet_guardians FOR DELETE
     USING (
-        user_id = auth.uid() OR
-        EXISTS (SELECT 1 FROM public.pets WHERE pets.id = pet_guardians.pet_id AND pets.owner_id = auth.uid())
+        user_id = auth.uid() OR public.is_pet_owner(pet_id, auth.uid())
     );
-
--- Función de ayuda para validar propiedad o co-tutela de mascota
-CREATE OR REPLACE FUNCTION public.check_user_owns_pet(p_pet_id UUID)
-RETURNS BOOLEAN AS $$
-BEGIN
-    RETURN EXISTS (
-        SELECT 1 FROM public.pets
-        WHERE id = p_pet_id AND owner_id = auth.uid()
-    ) OR EXISTS (
-        SELECT 1 FROM public.pet_guardians
-        WHERE pet_id = p_pet_id AND user_id = auth.uid()
-    );
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 1. Profiles
 DROP POLICY IF EXISTS "Users can view their own profile" ON public.profiles;
@@ -358,17 +388,15 @@ CREATE POLICY "Users can update their own profile" ON public.profiles FOR UPDATE
 DROP POLICY IF EXISTS "Users can view their own pets" ON public.pets;
 DROP POLICY IF EXISTS "Users can view their own or shared pets" ON public.pets;
 CREATE POLICY "Users can view their own or shared pets" ON public.pets FOR SELECT USING (
-    auth.uid() = owner_id OR
-    EXISTS (
-        SELECT 1 FROM public.pet_guardians
-        WHERE pet_guardians.pet_id = public.pets.id AND pet_guardians.user_id = auth.uid()
-    )
+    auth.uid() = owner_id OR public.is_pet_guardian(id, auth.uid())
 );
 DROP POLICY IF EXISTS "Users can insert their own pets" ON public.pets;
 CREATE POLICY "Users can insert their own pets" ON public.pets FOR INSERT WITH CHECK (auth.uid() = owner_id);
 DROP POLICY IF EXISTS "Users can update their own pets" ON public.pets;
 DROP POLICY IF EXISTS "Users can update their own or shared pets" ON public.pets;
-CREATE POLICY "Users can update their own or shared pets" ON public.pets FOR UPDATE USING (public.check_user_owns_pet(id));
+CREATE POLICY "Users can update their own or shared pets" ON public.pets FOR UPDATE USING (
+    auth.uid() = owner_id OR public.is_pet_guardian(id, auth.uid())
+);
 DROP POLICY IF EXISTS "Users can delete their own pets" ON public.pets;
 CREATE POLICY "Users can delete their own pets" ON public.pets FOR DELETE USING (auth.uid() = owner_id);
 

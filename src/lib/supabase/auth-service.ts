@@ -121,6 +121,11 @@ export class SupabaseAuthService {
 
   static async signOut(): Promise<void> {
     if (!isLiveSupabaseConfigured()) return;
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('pawcare_cached_session');
+      } catch {}
+    }
     await this.supabase.auth.signOut();
   }
 }

@@ -714,6 +714,141 @@ export default function SaludPage() {
             </div>
           </div>
 
+          {/* Interactive Weight / Activity Graph (Neon Blue Sleek Mockup Style) */}
+          {weightLogs.length > 0 && (() => {
+            const chartData = [...weightLogs].reverse().slice(-7);
+            const weights = chartData.map((d) => d.weight_kg);
+            const minW = Math.max(0, Math.min(...weights) - 1);
+            const maxW = Math.max(...weights) + 1;
+            const range = maxW - minW || 1;
+
+            const width = 500;
+            const height = 160;
+            const paddingX = 42;
+            const paddingTop = 22;
+            const paddingBottom = 30;
+            const innerW = width - paddingX * 2;
+            const innerH = height - paddingTop - paddingBottom;
+
+            const points = chartData.map((d, i) => {
+              const x = chartData.length === 1 ? width / 2 : paddingX + (i / (chartData.length - 1)) * innerW;
+              const y = paddingTop + innerH - ((d.weight_kg - minW) / range) * innerH;
+              return { x, y, val: d.weight_kg, date: formatInMontevideo(d.logged_date, 'd MMM') };
+            });
+
+            const linePath = points.length === 1
+              ? `M ${points[0].x - 40} ${points[0].y} L ${points[0].x + 40} ${points[0].y}`
+              : points.reduce((acc, pt, idx) => {
+                  if (idx === 0) return `M ${pt.x} ${pt.y}`;
+                  const prev = points[idx - 1];
+                  const cX = (prev.x + pt.x) / 2;
+                  return `${acc} C ${cX} ${prev.y}, ${cX} ${pt.y}, ${pt.x} ${pt.y}`;
+                }, '');
+
+            const areaPath = points.length === 1
+              ? ''
+              : `${linePath} L ${points[points.length - 1].x} ${height - paddingBottom} L ${points[0].x} ${height - paddingBottom} Z`;
+
+            return (
+              <div className="bg-white dark:bg-[#1E1E1E] rounded-2xl sm:rounded-3xl border border-[#E5E1D6] dark:border-[#2A2A2A] p-4 sm:p-5 shadow-xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-[#222624] dark:text-[#E0E0E0]">
+                      Evolución de Peso
+                    </h3>
+                    <p className="text-[11px] text-[#606763] dark:text-[#9CA3AF]">
+                      Gráfico de tendencia ({activePet?.name || 'Mascota'})
+                    </p>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#E9EFEA] text-[#274033] dark:bg-emerald-950/50 dark:text-[#34D399] border border-[#D3DFD7] dark:border-emerald-800/60">
+                    Últimos registros
+                  </span>
+                </div>
+
+                <div className="w-full overflow-x-auto">
+                  <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-44 overflow-visible">
+                    <defs>
+                      <linearGradient id="chartGlowArea" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#10B981" stopOpacity="0.35" />
+                        <stop offset="100%" stopColor="#10B981" stopOpacity="0.0" />
+                      </linearGradient>
+                      <filter id="neonLineGlow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feDropShadow dx="0" dy="0" stdDeviation="4" floodColor="#10B981" floodOpacity="0.7" />
+                      </filter>
+                    </defs>
+
+                    {/* Gridlines */}
+                    {[0, 0.5, 1].map((pct, idx) => {
+                      const y = paddingTop + innerH * pct;
+                      const val = (maxW - pct * range).toFixed(1);
+                      return (
+                        <g key={idx}>
+                          <line
+                            x1={paddingX}
+                            y1={y}
+                            x2={width - paddingX}
+                            y2={y}
+                            stroke="currentColor"
+                            className="text-[#EFECE5] dark:text-[#282828]"
+                            strokeDasharray="4 4"
+                          />
+                          <text
+                            x={paddingX - 8}
+                            y={y + 3}
+                            textAnchor="end"
+                            className="text-[9px] fill-[#8E9490] dark:fill-[#9CA3AF] font-mono"
+                          >
+                            {val} kg
+                          </text>
+                        </g>
+                      );
+                    })}
+
+                    {/* Gradient Area Fill */}
+                    {areaPath && (
+                      <path d={areaPath} fill="url(#chartGlowArea)" />
+                    )}
+
+                    {/* Neon Emerald Line */}
+                    <path
+                      d={linePath}
+                      fill="none"
+                      stroke="#10B981"
+                      strokeWidth="3.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      filter="url(#neonLineGlow)"
+                    />
+
+                    {/* Glowing Points */}
+                    {points.map((pt, idx) => (
+                      <g key={idx} className="transition-all hover:scale-125 cursor-pointer">
+                        <circle cx={pt.x} cy={pt.y} r="5.5" fill="#121413" stroke="#10B981" strokeWidth="2.5" />
+                        <circle cx={pt.x} cy={pt.y} r="2.5" fill="#34D399" />
+                        <text
+                          x={pt.x}
+                          y={height - 8}
+                          textAnchor="middle"
+                          className="text-[9px] fill-[#606763] dark:fill-[#9CA3AF] font-medium"
+                        >
+                          {pt.date}
+                        </text>
+                        <text
+                          x={pt.x}
+                          y={pt.y - 10}
+                          textAnchor="middle"
+                          className="text-[10px] font-bold fill-[#222624] dark:fill-[#F3F4F6]"
+                        >
+                          {pt.val} kg
+                        </text>
+                      </g>
+                    ))}
+                  </svg>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Weight History List */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">

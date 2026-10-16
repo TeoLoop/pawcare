@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/modal';
 import { Pet } from '@/types/medication';
 import { KiraRepository } from '@/lib/storage/repository';
+import { Camera, Upload, X, Loader2 } from 'lucide-react';
 
 interface PetModalProps {
   isOpen: boolean;
@@ -20,6 +21,8 @@ export function PetModal({ isOpen, onClose, onSuccess, petToEdit }: PetModalProp
   const [birthDate, setBirthDate] = useState('');
   const [weightKg, setWeightKg] = useState<number | ''>(20);
   const [notes, setNotes] = useState('');
+  const [photoUrl, setPhotoUrl] = useState('');
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -31,6 +34,7 @@ export function PetModal({ isOpen, onClose, onSuccess, petToEdit }: PetModalProp
         setBirthDate(petToEdit.birth_date || '');
         setWeightKg(petToEdit.weight_kg ?? '');
         setNotes(petToEdit.notes || '');
+        setPhotoUrl(petToEdit.photo_url || '');
       } else {
         setName('');
         setSpecies('Canino');
@@ -38,9 +42,57 @@ export function PetModal({ isOpen, onClose, onSuccess, petToEdit }: PetModalProp
         setBirthDate('');
         setWeightKg(15);
         setNotes('');
+        setPhotoUrl('');
       }
     });
   }, [petToEdit, isOpen]);
+
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('La imagen no puede superar los 10 MB.');
+      return;
+    }
+
+    setIsUploadingPhoto(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', 'pets');
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.publicUrl) {
+          setPhotoUrl(data.publicUrl);
+          setIsUploadingPhoto(false);
+          return;
+        }
+      }
+
+      // Fallback: Read as base64 data URL
+      const reader = new FileReader();
+      reader.onload = () => {
+        setPhotoUrl(reader.result as string);
+        setIsUploadingPhoto(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.warn('Error uploading pet photo:', err);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setPhotoUrl(reader.result as string);
+        setIsUploadingPhoto(false);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,6 +109,7 @@ export function PetModal({ isOpen, onClose, onSuccess, petToEdit }: PetModalProp
           birth_date: birthDate || undefined,
           weight_kg: weightKg !== '' ? Number(weightKg) : undefined,
           notes: notes.trim() || undefined,
+          photo_url: photoUrl.trim() || undefined,
         });
       } else {
         saved = KiraRepository.addPet({
@@ -67,6 +120,7 @@ export function PetModal({ isOpen, onClose, onSuccess, petToEdit }: PetModalProp
           birth_date: birthDate || undefined,
           weight_kg: weightKg !== '' ? Number(weightKg) : undefined,
           notes: notes.trim() || undefined,
+          photo_url: photoUrl.trim() || undefined,
         });
       }
 
@@ -87,6 +141,53 @@ export function PetModal({ isOpen, onClose, onSuccess, petToEdit }: PetModalProp
       description="Perfil individual para gestionar medicamentos y salud"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Photo Upload Avatar Picker */}
+        <div className="flex flex-col sm:flex-row items-center gap-3.5 p-3 rounded-2xl bg-[#FAF8F5] dark:bg-stone-850 border border-[#E5E1D6] dark:border-stone-800">
+          <div className="relative group w-20 h-20 rounded-2xl border-2 border-dashed border-[#D3DFD7] dark:border-stone-700 overflow-hidden bg-white dark:bg-stone-800 flex items-center justify-center shrink-0 shadow-2xs">
+            {photoUrl ? (
+              <>
+                <img src={photoUrl} alt="Foto de la mascota" className="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setPhotoUrl('')}
+                  className="absolute top-1 right-1 p-1 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
+                  title="Eliminar foto"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </>
+            ) : (
+              <div className="text-center p-2 text-[#606763] dark:text-stone-400">
+                {isUploadingPhoto ? (
+                  <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#3E5A4D] dark:text-emerald-400" />
+                ) : (
+                  <>
+                    <Camera className="w-6 h-6 mx-auto mb-1 text-[#3E5A4D] dark:text-emerald-400" />
+                    <span className="text-[9px] font-bold block leading-tight">Subir foto</span>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="flex-1 text-center sm:text-left">
+            <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-stone-800 border border-[#E5E1D6] dark:border-stone-700 hover:bg-[#FAF8F5] dark:hover:bg-stone-700 text-xs font-semibold text-[#222624] dark:text-stone-100 cursor-pointer shadow-xs transition-colors">
+              <Upload className="w-3.5 h-3.5 text-[#3E5A4D] dark:text-emerald-400" />
+              <span>{photoUrl ? 'Cambiar foto' : 'Elegir foto de tu perra'}</span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoSelect}
+                className="hidden"
+                disabled={isUploadingPhoto}
+              />
+            </label>
+            <p className="text-[11px] text-[#606763] dark:text-stone-400 mt-1">
+              JPG, PNG o WebP. Se mostrará en el Inicio, barra lateral y perfiles.
+            </p>
+          </div>
+        </div>
+
         <div>
           <label className="block text-xs font-semibold text-[#222624] mb-1">
             Nombre de la mascota <span className="text-[#C34A3E]">*</span>

@@ -37,6 +37,7 @@ export default function HomePage() {
   const [reminderNotification, setReminderNotification] = useState<string | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   const refreshData = () => {
     const p = KiraRepository.getPet();
@@ -63,9 +64,8 @@ export default function HomePage() {
   };
 
   useEffect(() => {
-    queueMicrotask(() => {
-      refreshData();
-    });
+    setMounted(true);
+    refreshData();
 
     CloudSyncService.init().then(() => {
       refreshData();
@@ -77,12 +77,17 @@ export default function HomePage() {
     const handleSynced = () => {
       refreshData();
     };
+    const handleAuthChange = () => {
+      refreshData();
+    };
 
     window.addEventListener('pawcare_pet_changed', handlePetChange);
     window.addEventListener('pawcare_synced', handleSynced);
+    window.addEventListener('pawcare_auth_changed', handleAuthChange);
     return () => {
       window.removeEventListener('pawcare_pet_changed', handlePetChange);
       window.removeEventListener('pawcare_synced', handleSynced);
+      window.removeEventListener('pawcare_auth_changed', handleAuthChange);
     };
   }, []);
 
@@ -122,7 +127,7 @@ export default function HomePage() {
   return (
     <div className="space-y-6">
       {/* Cloud Authentication Banner if not logged in */}
-      {!isAuthenticated && (
+      {mounted && !isAuthenticated && (
         <div className="p-4 rounded-3xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 dark:from-stone-900 dark:via-stone-900 dark:to-stone-850 border border-emerald-200 dark:border-stone-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs animate-in fade-in">
           <div className="flex items-center gap-3.5">
             <div className="w-10 h-10 rounded-2xl bg-white dark:bg-stone-800 border border-emerald-200 dark:border-stone-700 flex items-center justify-center text-[#3E5A4D] dark:text-emerald-400 shrink-0 shadow-xs">
@@ -151,11 +156,22 @@ export default function HomePage() {
 
       {/* 1. Pet Hero Card */}
       <div className="bg-white dark:bg-stone-900 rounded-3xl border border-[#E5E1D6] dark:border-stone-800 p-4 sm:p-6 shadow-xs relative overflow-hidden">
-        {pet?.name ? (
+        {mounted && pet?.name ? (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 sm:gap-4">
             <div className="flex items-center gap-3.5 sm:gap-4">
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#E9EFEA] dark:bg-emerald-950/40 border-2 border-[#D3DFD7] dark:border-emerald-800 flex items-center justify-center text-[#3E5A4D] dark:text-emerald-400 shrink-0 font-bold text-2xl shadow-xs">
-                🐾
+              <div
+                onClick={() => setIsPetModalOpen(true)}
+                title="Clic para cambiar la foto de tu perra o editar su perfil"
+                className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#E9EFEA] dark:bg-emerald-950/40 border-2 border-[#D3DFD7] dark:border-emerald-800 flex items-center justify-center text-[#3E5A4D] dark:text-emerald-400 shrink-0 font-bold text-2xl shadow-xs overflow-hidden cursor-pointer relative group hover:opacity-90 transition-opacity"
+              >
+                {pet.photo_url ? (
+                  <img src={pet.photo_url} alt={pet.name} className="w-full h-full object-cover" />
+                ) : (
+                  <span>🐾</span>
+                )}
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold">
+                  Editar
+                </div>
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
@@ -196,11 +212,11 @@ export default function HomePage() {
               </Link>
             </div>
           </div>
-        ) : (
+        ) : mounted ? (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h1 className="text-xl font-bold text-[#222624]">¡Bienvenido a PawCare!</h1>
-              <p className="text-xs text-[#606763] mt-1">
+              <h1 className="text-xl font-bold text-[#222624] dark:text-stone-100">¡Bienvenido a PawCare!</h1>
+              <p className="text-xs text-[#606763] dark:text-stone-400 mt-1">
                 Registrá tu primera mascota para gestionar sus medicamentos, recordatorios de WhatsApp y salud.
               </p>
             </div>
@@ -212,6 +228,14 @@ export default function HomePage() {
               <Plus className="w-4 h-4" />
               Registrar Mascota
             </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-4 animate-pulse py-1">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-stone-100 dark:bg-stone-800" />
+            <div className="flex-1 space-y-2">
+              <div className="h-6 w-36 bg-stone-200 dark:bg-stone-800 rounded-md" />
+              <div className="h-4 w-48 bg-stone-100 dark:bg-stone-850 rounded-md" />
+            </div>
           </div>
         )}
 
@@ -383,11 +407,12 @@ export default function HomePage() {
         onSuccess={refreshData}
       />
 
-      {/* Pet Registration Modal */}
+      {/* Pet Registration / Edit Modal */}
       <PetModal
         isOpen={isPetModalOpen}
         onClose={() => setIsPetModalOpen(false)}
         onSuccess={refreshData}
+        petToEdit={pet}
       />
 
       {/* Supabase Cloud Auth Modal */}

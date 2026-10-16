@@ -51,13 +51,18 @@ export function TopHeader() {
     const handlePetChange = () => {
       setActivePet(KiraRepository.getActivePet());
     };
+    const handleAuthChange = () => {
+      setSyncStatus(CloudSyncService.getStatus());
+    };
 
     window.addEventListener('pawcare_synced', handleSynced);
     window.addEventListener('pawcare_pet_changed', handlePetChange);
+    window.addEventListener('pawcare_auth_changed', handleAuthChange);
 
     return () => {
       window.removeEventListener('pawcare_synced', handleSynced);
       window.removeEventListener('pawcare_pet_changed', handlePetChange);
+      window.removeEventListener('pawcare_auth_changed', handleAuthChange);
     };
   }, []);
 
@@ -89,7 +94,7 @@ export function TopHeader() {
   };
 
   return (
-    <header className="bg-white/85 dark:bg-[#1A1C1B]/90 backdrop-blur-md border-b border-[#E5E1D6] dark:border-stone-800 sticky top-0 z-40 px-3.5 sm:px-6 py-2.5 sm:py-3.5">
+    <header className="bg-white/85 dark:bg-[#121212]/90 backdrop-blur-md border-b border-[#E5E1D6] dark:border-[#2A2A2A] sticky top-0 z-40 px-3.5 sm:px-6 py-2.5 sm:py-3.5">
       <div className="max-w-5xl mx-auto flex items-center justify-between gap-2 sm:gap-3">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           {/* Multi-Pet Switcher */}

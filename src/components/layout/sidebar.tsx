@@ -42,12 +42,17 @@ export function Sidebar() {
       setSyncStatus(CloudSyncService.getStatus());
       setActivePet(KiraRepository.getActivePet());
     };
+    const handleAuthChange = () => {
+      setSyncStatus(CloudSyncService.getStatus());
+    };
 
     window.addEventListener('pawcare_pet_changed', handlePetChange);
     window.addEventListener('pawcare_synced', handleSynced);
+    window.addEventListener('pawcare_auth_changed', handleAuthChange);
     return () => {
       window.removeEventListener('pawcare_pet_changed', handlePetChange);
       window.removeEventListener('pawcare_synced', handleSynced);
+      window.removeEventListener('pawcare_auth_changed', handleAuthChange);
     };
   }, []);
 
@@ -79,14 +84,14 @@ export function Sidebar() {
                 className={cn(
                   'flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all',
                   isActive
-                    ? 'bg-[#E9EFEA] text-[#274033] shadow-xs font-semibold'
-                    : 'text-[#606763] hover:text-[#222624] hover:bg-[#FAF8F5]'
+                    ? 'bg-[#E9EFEA] text-[#274033] dark:bg-emerald-950/50 dark:text-[#34D399] dark:border dark:border-emerald-800/60 dark:shadow-[0_0_15px_rgba(16,185,129,0.15)] shadow-xs font-semibold'
+                    : 'text-[#606763] hover:text-[#222624] hover:bg-[#FAF8F5] dark:text-stone-400 dark:hover:text-stone-100 dark:hover:bg-[#252525]'
                 )}
               >
                 <Icon
                   className={cn(
                     'w-4 h-4 transition-colors',
-                    isActive ? 'text-[#3E5A4D]' : 'text-[#8E9490]'
+                    isActive ? 'text-[#3E5A4D] dark:text-[#34D399]' : 'text-[#8E9490] dark:text-stone-400'
                   )}
                 />
                 {item.label}
@@ -104,10 +109,16 @@ export function Sidebar() {
         >
           <div className="flex items-center gap-2.5">
             <div
-              className="w-7 h-7 rounded-full bg-[#3E5A4D] text-white flex items-center justify-center font-bold text-xs shrink-0"
+              className="w-7 h-7 rounded-full bg-[#3E5A4D] text-white flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden"
               suppressHydrationWarning
             >
-              {mounted && activePet?.name ? activePet.name.charAt(0).toUpperCase() : '🐾'}
+              {mounted && activePet?.photo_url ? (
+                <img src={activePet.photo_url} alt={activePet.name} className="w-full h-full object-cover" />
+              ) : mounted && activePet?.name ? (
+                activePet.name.charAt(0).toUpperCase()
+              ) : (
+                '🐾'
+              )}
             </div>
             <div className="overflow-hidden">
               <p

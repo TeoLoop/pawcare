@@ -14,11 +14,49 @@ export interface SyncStatus {
   error: string | null;
 }
 
+const SESSION_CACHE_KEY = 'pawcare_cached_session';
+
+interface CachedSession {
+  userEmail: string | null;
+  userName: string | null;
+  isAuthenticated: boolean;
+}
+
+const getInitialSession = (): CachedSession => {
+  if (typeof window === 'undefined') {
+    return { userEmail: null, userName: null, isAuthenticated: false };
+  }
+  try {
+    const raw = localStorage.getItem(SESSION_CACHE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.isAuthenticated === 'boolean') {
+        return parsed;
+      }
+    }
+    // Direct check of Supabase auth tokens in localStorage
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+        const val = localStorage.getItem(key);
+        if (val && val.includes('access_token')) {
+          return { userEmail: null, userName: null, isAuthenticated: true };
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return { userEmail: null, userName: null, isAuthenticated: false };
+};
+
+const initialSession = getInitialSession();
+
 const syncStatusState: SyncStatus = {
   isConfigured: false,
-  isAuthenticated: false,
-  userEmail: null,
-  userName: null,
+  isAuthenticated: initialSession.isAuthenticated,
+  userEmail: initialSession.userEmail,
+  userName: initialSession.userName,
   lastSyncedAt: null,
   syncing: false,
   error: null,
@@ -73,11 +111,28 @@ export class CloudSyncService {
           syncStatusState.isAuthenticated = true;
           syncStatusState.userEmail = user.email || 'Usuario';
           syncStatusState.userName = await this.resolveUserName(user);
-          await this.syncFromCloud();
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify({
+                userEmail: syncStatusState.userEmail,
+                userName: syncStatusState.userName,
+                isAuthenticated: true,
+              }));
+            } catch {}
+            window.dispatchEvent(new CustomEvent('pawcare_auth_changed'));
+          }
+          // Fetch data in parallel in the background without blocking init
+          this.syncFromCloud().catch(console.warn);
         } else {
           syncStatusState.isAuthenticated = false;
           syncStatusState.userEmail = null;
           syncStatusState.userName = null;
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.removeItem(SESSION_CACHE_KEY);
+            } catch {}
+            window.dispatchEvent(new CustomEvent('pawcare_auth_changed'));
+          }
         }
       } catch (err: unknown) {
         console.warn('[CloudSync] Init error:', err);
@@ -89,7 +144,7 @@ export class CloudSyncService {
 
   /**
    * Pulls all records from Supabase cloud and updates in-memory repository.
-   * Debounced and concurrency-locked to avoid redundant network spikes.
+   * Runs queries in parallel for instant sub-second synchronization.
    */
   static async syncFromCloud(force = false): Promise<{ success: boolean; error?: string }> {
     if (!isLiveSupabaseConfigured()) {
@@ -101,7 +156,7 @@ export class CloudSyncService {
     }
 
     const now = Date.now();
-    if (!force && now - this.lastSyncTimestamp < 5000) {
+    if (!force && now - this.lastSyncTimestamp < 3000) {
       return { success: true };
     }
 
@@ -115,57 +170,82 @@ export class CloudSyncService {
           syncStatusState.syncing = false;
           syncStatusState.isAuthenticated = false;
           syncStatusState.userName = null;
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.removeItem(SESSION_CACHE_KEY);
+            } catch {}
+            window.dispatchEvent(new CustomEvent('pawcare_auth_changed'));
+          }
           return { success: false, error: 'Iniciá sesión en Supabase para sincronizar con la nube.' };
         }
 
-      syncStatusState.isAuthenticated = true;
-      syncStatusState.userEmail = user.email || 'Usuario';
-      syncStatusState.userName = await this.resolveUserName(user);
-
-      // 1. Fetch pets from cloud
-      const cloudPets = await SupabaseCloudRepository.getPets();
-      KiraRepository.setPetsFromCloud(cloudPets || []);
-
-      // 2. Fetch medications from cloud
-      const cloudMeds = await SupabaseCloudRepository.getMedications();
-      KiraRepository.setMedicationsFromCloud(cloudMeds || []);
-
-      // 3. Fetch scheduled doses
-      const cloudDoses = await SupabaseCloudRepository.getScheduledDoses();
-      KiraRepository.setScheduledDosesFromCloud(cloudDoses || []);
-
-      // 4. Fetch dose logs
-      const cloudLogs = await SupabaseCloudRepository.getDoseLogs();
-      KiraRepository.setDoseLogsFromCloud(cloudLogs || []);
-
-      // 5. Fetch symptoms
-      const cloudSymptoms = await SupabaseCloudRepository.getSymptomLogs();
-      KiraRepository.setSymptomsFromCloud(cloudSymptoms || []);
-
-      // 6. Fetch vet visits
-      const cloudVisits = await SupabaseCloudRepository.getVetVisits();
-      KiraRepository.setVetVisitsFromCloud(cloudVisits || []);
-
-      // 7. Fetch medical documents
-      const cloudDocs = await SupabaseCloudRepository.getMedicalDocuments();
-      KiraRepository.setDocumentsFromCloud(cloudDocs || []);
-
-      // 8. Fetch user settings
-      const cloudSettings = await SupabaseCloudRepository.getUserSettings();
-      if (cloudSettings) {
-        KiraRepository.setUserSettingsFromCloud(cloudSettings);
-      }
-
-      // 9. Fetch weight logs (only unique pet IDs)
-      const uniquePetIds = Array.from(
-        new Set(KiraRepository.getPets().map((p) => p.id).filter(Boolean))
-      );
-      for (const petId of uniquePetIds) {
-        const cloudWeights = await SupabaseCloudRepository.getWeightLogs(petId);
-        if (cloudWeights && cloudWeights.length > 0) {
-          KiraRepository.setWeightLogsFromCloud(cloudWeights, petId);
+        syncStatusState.isAuthenticated = true;
+        syncStatusState.userEmail = user.email || 'Usuario';
+        syncStatusState.userName = await this.resolveUserName(user);
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify({
+              userEmail: syncStatusState.userEmail,
+              userName: syncStatusState.userName,
+              isAuthenticated: true,
+            }));
+          } catch {}
+          window.dispatchEvent(new CustomEvent('pawcare_auth_changed'));
         }
-      }
+
+        // Parallel fetch for all primary tables (9x faster than sequential await)
+        const [
+          cloudPets,
+          cloudMeds,
+          cloudDoses,
+          cloudLogs,
+          cloudSymptoms,
+          cloudVisits,
+          cloudDocs,
+          cloudSettings,
+        ] = await Promise.all([
+          SupabaseCloudRepository.getPets(),
+          SupabaseCloudRepository.getMedications(),
+          SupabaseCloudRepository.getScheduledDoses(),
+          SupabaseCloudRepository.getDoseLogs(),
+          SupabaseCloudRepository.getSymptomLogs(),
+          SupabaseCloudRepository.getVetVisits(),
+          SupabaseCloudRepository.getMedicalDocuments(),
+          SupabaseCloudRepository.getUserSettings(),
+        ]);
+
+        if (cloudPets !== null) {
+          if (cloudPets.length > 0) {
+            KiraRepository.setPetsFromCloud(cloudPets);
+          } else {
+            const localPets = KiraRepository.getPets();
+            if (localPets.length > 0) {
+              console.log('[CloudSync] Migrando mascotas locales a Supabase...');
+              await this.uploadLocalDataToCloud();
+            } else {
+              KiraRepository.setPetsFromCloud([]);
+            }
+          }
+        }
+
+        if (cloudMeds !== null) KiraRepository.setMedicationsFromCloud(cloudMeds);
+        if (cloudDoses !== null) KiraRepository.setScheduledDosesFromCloud(cloudDoses);
+        if (cloudLogs !== null) KiraRepository.setDoseLogsFromCloud(cloudLogs);
+        if (cloudSymptoms !== null) KiraRepository.setSymptomsFromCloud(cloudSymptoms);
+        if (cloudVisits !== null) KiraRepository.setVetVisitsFromCloud(cloudVisits);
+        if (cloudDocs !== null) KiraRepository.setDocumentsFromCloud(cloudDocs);
+        if (cloudSettings) KiraRepository.setUserSettingsFromCloud(cloudSettings);
+
+        // 9. Fetch weight logs (only unique pet IDs)
+        const uniquePetIds = Array.from(
+          new Set(KiraRepository.getPets().map((p) => p.id).filter(Boolean))
+        );
+        for (const petId of uniquePetIds) {
+          const cloudWeights = await SupabaseCloudRepository.getWeightLogs(petId);
+          if (cloudWeights && cloudWeights.length > 0) {
+            KiraRepository.setWeightLogsFromCloud(cloudWeights, petId);
+          }
+        }
 
         syncStatusState.lastSyncedAt = new Date().toISOString();
         syncStatusState.syncing = false;

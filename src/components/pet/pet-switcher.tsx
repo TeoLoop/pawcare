@@ -69,7 +69,13 @@ export function PetSwitcher() {
           className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-[#E9EFEA] hover:bg-[#DDE7DF] dark:bg-emerald-950/40 dark:hover:bg-emerald-900/40 text-[#274033] dark:text-emerald-300 border border-[#D3DFD7] dark:border-emerald-800 text-xs font-semibold transition-all shadow-2xs"
           aria-expanded={isOpen}
         >
-          <span className="text-sm">🐾</span>
+          <div className="w-5 h-5 rounded-md overflow-hidden shrink-0 flex items-center justify-center bg-black/10 dark:bg-white/10">
+            {activePet.photo_url ? (
+              <img src={activePet.photo_url} alt={activePet.name} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-xs">🐾</span>
+            )}
+          </div>
           <span className="font-bold truncate max-w-[100px] sm:max-w-none">{activePet.name}</span>
           <span className="text-[10px] text-[#3E5A4D] dark:text-emerald-400 font-normal hidden sm:inline">
             ({activePet.species})
@@ -108,8 +114,12 @@ export function PetSwitcher() {
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-white dark:bg-stone-800 border border-[#E5E1D6] dark:border-stone-700 flex items-center justify-center text-xs shrink-0">
-                      🐾
+                    <div className="w-7 h-7 rounded-lg bg-white dark:bg-stone-800 border border-[#E5E1D6] dark:border-stone-700 flex items-center justify-center text-xs shrink-0 overflow-hidden">
+                      {pet.photo_url ? (
+                        <img src={pet.photo_url} alt={pet.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <span>🐾</span>
+                      )}
                     </div>
                     <div className="min-w-0">
                       <p className="leading-tight truncate">{pet.name}</p>

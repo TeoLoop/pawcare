@@ -40,11 +40,11 @@ function ShellInner({ children }: { children: React.ReactNode }) {
   }, [isStandalone, router]);
 
   if (isStandalone) {
-    return <main className="min-h-screen bg-[#FAF8F5] dark:bg-stone-950">{children}</main>;
+    return <main className="min-h-screen bg-[#FAF8F5] dark:bg-[#121212]">{children}</main>;
   }
 
   return (
-    <div className="flex min-h-screen bg-[#FAF8F5] dark:bg-stone-950">
+    <div className="flex min-h-screen bg-[#FAF8F5] dark:bg-[#121212]">
       {/* Desktop Sidebar */}
       <Sidebar />
 
@@ -64,7 +64,7 @@ function ShellInner({ children }: { children: React.ReactNode }) {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#FAF8F5] dark:bg-stone-950" />}>
+    <Suspense fallback={<div className="min-h-screen bg-[#FAF8F5] dark:bg-[#121212]" />}>
       <ShellInner>{children}</ShellInner>
     </Suspense>
   );

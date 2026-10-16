@@ -317,8 +317,12 @@ export default function AjustesPage() {
                 <div>
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-9 h-9 rounded-xl bg-white dark:bg-stone-800 border border-[#E5E1D6] dark:border-stone-700 flex items-center justify-center text-sm shadow-2xs">
-                        🐾
+                      <div className="w-9 h-9 rounded-xl bg-white dark:bg-stone-800 border border-[#E5E1D6] dark:border-stone-700 flex items-center justify-center text-sm shadow-2xs overflow-hidden shrink-0">
+                        {p.photo_url ? (
+                          <img src={p.photo_url} alt={p.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <span>🐾</span>
+                        )}
                       </div>
                       <div>
                         <div className="flex items-center gap-1.5">
