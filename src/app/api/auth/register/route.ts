@@ -8,9 +8,9 @@ export async function POST(request: NextRequest) {
     const { email, password, username, fullName } = body;
     const userAlias = (username || fullName || '').trim();
 
-    if (!email || !password) {
+    if (!email || !password || !userAlias) {
       return NextResponse.json(
-        { error: 'Correo electrónico y contraseña requeridos.' },
+        { error: 'Correo electrónico, contraseña y nombre de usuario son obligatorios.' },
         { status: 400 }
       );
     }
@@ -28,6 +28,23 @@ export async function POST(request: NextRequest) {
     const { data: existingUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers();
     
     if (!listError && existingUsers?.users) {
+      // Check if username is already registered by a different email
+      if (userAlias) {
+        const usernameTaken = existingUsers.users.find(
+          (u) =>
+            u.email?.toLowerCase() !== email.toLowerCase() &&
+            ((u.user_metadata?.username || '').trim().toLowerCase() === userAlias.toLowerCase() ||
+             (u.user_metadata?.full_name || '').trim().toLowerCase() === userAlias.toLowerCase())
+        );
+
+        if (usernameTaken) {
+          return NextResponse.json(
+            { error: `El nombre de usuario "${userAlias}" ya está registrado. Por favor elegí otro nombre de usuario.` },
+            { status: 400 }
+          );
+        }
+      }
+
       const found = existingUsers.users.find(
         (u) => u.email?.toLowerCase() === email.toLowerCase()
       );
@@ -38,10 +55,21 @@ export async function POST(request: NextRequest) {
           email_confirm: true,
           password: password,
           user_metadata: {
-            username: userAlias || found.user_metadata?.username || 'Tutor',
-            full_name: userAlias || found.user_metadata?.full_name || 'Tutor',
+            username: userAlias,
+            full_name: userAlias,
           },
         });
+
+        try {
+          await supabaseAdmin.from('profiles').upsert({
+            id: found.id,
+            email: found.email || email,
+            full_name: userAlias,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'id' });
+        } catch (e: unknown) {
+          console.warn('Profile update warning:', e);
+        }
 
         return NextResponse.json({
           success: true,
@@ -73,7 +101,7 @@ export async function POST(request: NextRequest) {
       await supabaseAdmin.from('profiles').upsert({
         id: userId,
         email: data.user.email,
-        full_name: fullName || 'Tutor',
+        full_name: userAlias,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'id' });
     } catch (e: unknown) {

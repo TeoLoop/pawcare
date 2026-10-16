@@ -26,10 +26,12 @@ import {
   Send,
   Sparkles,
   Database,
+  Users,
 } from 'lucide-react';
 import { useTheme } from '@/components/theme/theme-provider';
 import { PetModal } from '@/components/pet/pet-modal';
 import { AuthModal } from '@/components/auth/auth-modal';
+import { SharePetModal } from '@/components/pet/share-pet-modal';
 import { CloudSyncService, SyncStatus } from '@/lib/supabase/sync-service';
 import { isLiveSupabaseConfigured } from '@/lib/supabase/client';
 import { SupabaseCloudRepository } from '@/lib/supabase/cloud-repository';
@@ -49,6 +51,7 @@ export default function AjustesPage() {
   } | null>(null);
   const [isPetModalOpen, setIsPetModalOpen] = useState(false);
   const [petToEdit, setPetToEdit] = useState<Pet | null>(null);
+  const [petToShare, setPetToShare] = useState<Pet | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(CloudSyncService.getStatus());
   const [isSyncing, setIsSyncing] = useState(false);
@@ -335,6 +338,14 @@ export default function AjustesPage() {
                     </div>
 
                     <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setPetToShare(p)}
+                        className="p-1.5 rounded-lg text-[#3E5A4D] hover:bg-[#E9EFEA] dark:text-emerald-400 dark:hover:bg-emerald-950/40 transition-colors"
+                        title="Compartir con co-tutores o familia"
+                      >
+                        <Users className="w-3.5 h-3.5" />
+                      </button>
                       <button
                         type="button"
                         onClick={() => {
@@ -625,6 +636,12 @@ export default function AjustesPage() {
           loadAllData();
         }}
         petToEdit={petToEdit}
+      />
+
+      <SharePetModal
+        isOpen={Boolean(petToShare)}
+        onClose={() => setPetToShare(null)}
+        pet={petToShare}
       />
 
       <AuthModal

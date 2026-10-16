@@ -23,6 +23,10 @@ const syncStatusState: SyncStatus = {
 };
 
 export class CloudSyncService {
+  private static initPromise: Promise<void> | null = null;
+  private static activeSyncPromise: Promise<{ success: boolean; error?: string }> | null = null;
+  private static lastSyncTimestamp = 0;
+
   static getStatus(): SyncStatus {
     const configured = isLiveSupabaseConfigured();
     return {
@@ -40,41 +44,60 @@ export class CloudSyncService {
       return;
     }
 
-    syncStatusState.isConfigured = true;
-
-    try {
-      const user = await SupabaseAuthService.getUser();
-      if (user) {
-        syncStatusState.isAuthenticated = true;
-        syncStatusState.userEmail = user.email || 'Usuario';
-        await this.syncFromCloud();
-      } else {
-        syncStatusState.isAuthenticated = false;
-        syncStatusState.userEmail = null;
-      }
-    } catch (err: unknown) {
-      console.warn('[CloudSync] Init error:', err);
+    if (this.initPromise) {
+      return this.initPromise;
     }
+
+    this.initPromise = (async () => {
+      syncStatusState.isConfigured = true;
+
+      try {
+        const user = await SupabaseAuthService.getUser();
+        if (user) {
+          syncStatusState.isAuthenticated = true;
+          syncStatusState.userEmail = user.email || 'Usuario';
+          await this.syncFromCloud();
+        } else {
+          syncStatusState.isAuthenticated = false;
+          syncStatusState.userEmail = null;
+        }
+      } catch (err: unknown) {
+        console.warn('[CloudSync] Init error:', err);
+      }
+    })();
+
+    return this.initPromise;
   }
 
   /**
    * Pulls all records from Supabase cloud and updates in-memory repository.
+   * Debounced and concurrency-locked to avoid redundant network spikes.
    */
-  static async syncFromCloud(): Promise<{ success: boolean; error?: string }> {
+  static async syncFromCloud(force = false): Promise<{ success: boolean; error?: string }> {
     if (!isLiveSupabaseConfigured()) {
       return { success: false, error: 'Supabase no está configurado.' };
     }
 
-    syncStatusState.syncing = true;
-    syncStatusState.error = null;
+    if (this.activeSyncPromise) {
+      return this.activeSyncPromise;
+    }
 
-    try {
-      const user = await SupabaseAuthService.getUser();
-      if (!user) {
-        syncStatusState.syncing = false;
-        syncStatusState.isAuthenticated = false;
-        return { success: false, error: 'Iniciá sesión en Supabase para sincronizar con la nube.' };
-      }
+    const now = Date.now();
+    if (!force && now - this.lastSyncTimestamp < 5000) {
+      return { success: true };
+    }
+
+    this.activeSyncPromise = (async () => {
+      syncStatusState.syncing = true;
+      syncStatusState.error = null;
+
+      try {
+        const user = await SupabaseAuthService.getUser();
+        if (!user) {
+          syncStatusState.syncing = false;
+          syncStatusState.isAuthenticated = false;
+          return { success: false, error: 'Iniciá sesión en Supabase para sincronizar con la nube.' };
+        }
 
       syncStatusState.isAuthenticated = true;
       syncStatusState.userEmail = user.email || 'Usuario';
@@ -113,31 +136,37 @@ export class CloudSyncService {
         KiraRepository.setUserSettingsFromCloud(cloudSettings);
       }
 
-      // 9. Fetch weight logs
-      const currentPets = KiraRepository.getPets();
-      for (const p of currentPets) {
-        if (p.id) {
-          const cloudWeights = await SupabaseCloudRepository.getWeightLogs(p.id);
-          if (cloudWeights && cloudWeights.length > 0) {
-            KiraRepository.setWeightLogsFromCloud(cloudWeights, p.id);
-          }
+      // 9. Fetch weight logs (only unique pet IDs)
+      const uniquePetIds = Array.from(
+        new Set(KiraRepository.getPets().map((p) => p.id).filter(Boolean))
+      );
+      for (const petId of uniquePetIds) {
+        const cloudWeights = await SupabaseCloudRepository.getWeightLogs(petId);
+        if (cloudWeights && cloudWeights.length > 0) {
+          KiraRepository.setWeightLogsFromCloud(cloudWeights, petId);
         }
       }
 
-      syncStatusState.lastSyncedAt = new Date().toISOString();
-      syncStatusState.syncing = false;
+        syncStatusState.lastSyncedAt = new Date().toISOString();
+        syncStatusState.syncing = false;
+        this.lastSyncTimestamp = Date.now();
 
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('pawcare_synced'));
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('pawcare_synced'));
+        }
+
+        return { success: true };
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Error desconocido al sincronizar.';
+        syncStatusState.error = msg;
+        syncStatusState.syncing = false;
+        return { success: false, error: msg };
+      } finally {
+        this.activeSyncPromise = null;
       }
+    })();
 
-      return { success: true };
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Error desconocido al sincronizar.';
-      syncStatusState.error = msg;
-      syncStatusState.syncing = false;
-      return { success: false, error: msg };
-    }
+    return this.activeSyncPromise;
   }
 
   /**

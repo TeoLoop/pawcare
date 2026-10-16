@@ -78,7 +78,10 @@ export default function LoginPage() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) return;
+    if (!email.trim() || !password || !username.trim()) {
+      setErrorMsg('Por favor completá tu nombre de usuario, correo y contraseña.');
+      return;
+    }
 
     setLoading(true);
     setErrorMsg(null);

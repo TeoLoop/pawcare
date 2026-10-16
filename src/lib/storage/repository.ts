@@ -107,7 +107,16 @@ function saveToStorage<T>(key: string, value: T): void {
 export class KiraRepository {
   private static init() {
     if (isClient() && !memoryState.initialized) {
-      memoryState.pets = loadFromStorage(STORAGE_KEYS.PETS, []);
+      const rawPets = loadFromStorage<Pet[]>(STORAGE_KEYS.PETS, []);
+      const seenPets = new Set<string>();
+      memoryState.pets = rawPets.filter((p) => {
+        if (!p.id || seenPets.has(p.id)) return false;
+        seenPets.add(p.id);
+        return true;
+      });
+      if (memoryState.pets.length !== rawPets.length) {
+        saveToStorage(STORAGE_KEYS.PETS, memoryState.pets);
+      }
       memoryState.activePetId = loadFromStorage(
         STORAGE_KEYS.ACTIVE_PET_ID,
         memoryState.pets[0]?.id || ''
@@ -1105,10 +1114,16 @@ export class KiraRepository {
   // --- CLOUD HYDRATION SETTERS ---
   static setPetsFromCloud(pets: Pet[]): void {
     this.init();
-    memoryState.pets = pets || [];
-    if (pets && pets.length > 0) {
-      if (!pets.some((p) => p.id === memoryState.activePetId)) {
-        memoryState.activePetId = pets[0].id;
+    const seen = new Set<string>();
+    const uniquePets = (pets || []).filter((p) => {
+      if (!p.id || seen.has(p.id)) return false;
+      seen.add(p.id);
+      return true;
+    });
+    memoryState.pets = uniquePets;
+    if (uniquePets.length > 0) {
+      if (!uniquePets.some((p) => p.id === memoryState.activePetId)) {
+        memoryState.activePetId = uniquePets[0].id;
         saveToStorage(STORAGE_KEYS.ACTIVE_PET_ID, memoryState.activePetId);
       }
     } else {

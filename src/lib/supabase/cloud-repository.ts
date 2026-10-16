@@ -743,21 +743,33 @@ export class SupabaseCloudRepository {
   }
 
   // --- WEIGHT LOGS ---
-  static async getWeightLogs(petId?: string): Promise<WeightLog[]> {
+  private static weightCache = new Map<string, { data: WeightLog[]; timestamp: number }>();
+
+  static async getWeightLogs(petId?: string, force = false): Promise<WeightLog[]> {
     if (!isLiveSupabaseConfigured() || !petId) return [];
+
+    const cached = this.weightCache.get(petId);
+    const now = Date.now();
+    if (!force && cached && now - cached.timestamp < 30000) {
+      return cached.data;
+    }
+
     try {
       const res = await fetch(`/api/weight?petId=${encodeURIComponent(petId)}`);
-      if (!res.ok) return [];
+      if (!res.ok) return cached?.data || [];
       const data = await res.json();
-      return (data.logs || []) as WeightLog[];
+      const logs = (data.logs || []) as WeightLog[];
+      this.weightCache.set(petId, { data: logs, timestamp: now });
+      return logs;
     } catch (err) {
       console.warn('[SupabaseCloud] Error fetching weight logs:', err);
-      return [];
+      return cached?.data || [];
     }
   }
 
   static async saveWeightLogs(petId: string, logs: WeightLog[], latestWeight?: number): Promise<boolean> {
     if (!isLiveSupabaseConfigured() || !petId) return false;
+    this.weightCache.set(petId, { data: logs, timestamp: Date.now() });
     try {
       const res = await fetch('/api/weight', {
         method: 'POST',

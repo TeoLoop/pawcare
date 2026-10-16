@@ -1,4 +1,4 @@
-// src/lib/date-utils.ts
+import type { Locale } from 'date-fns';
 import { format, parseISO, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toZonedTime, fromZonedTime, format as formatZoned } from 'date-fns-tz';
@@ -19,7 +19,7 @@ export function getNowInMontevideo(): Date {
 export function formatInMontevideo(
   date: Date | string,
   formatPattern: string = 'dd/MM/yyyy HH:mm',
-  options?: { locale?: any }
+  options?: { locale?: Locale }
 ): string {
   const d = typeof date === 'string' ? parseISO(date) : date;
   return formatZoned(d, formatPattern, {
