@@ -7,6 +7,7 @@ import { ScheduledDose } from '@/types/medication';
 import { KiraRepository } from '@/lib/storage/repository';
 import { CheckCircle2, XCircle, AlertTriangle, Clock, Pill, MessageSquare } from 'lucide-react';
 import { getLocalTimeString } from '@/lib/date-utils';
+import { formatDoseAmount } from '@/lib/utils';
 import { buildWhatsAppDirectLink } from '@/lib/whatsapp/client';
 
 interface DoseActionModalProps {
@@ -71,7 +72,7 @@ export function DoseActionModal({ dose, isOpen, onClose, onSuccess }: DoseAction
               </div>
             </div>
             <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#E9EFEA] text-[#274033] dark:bg-emerald-950/50 dark:text-emerald-300">
-              {dose.dose_amount} {dose.dose_unit}
+              {formatDoseAmount(dose.dose_amount)} {dose.dose_unit}
             </span>
           </div>
 
@@ -146,7 +147,7 @@ export function DoseActionModal({ dose, isOpen, onClose, onSuccess }: DoseAction
             />
             {dose.medication.track_inventory && (
               <p className="text-[11px] text-[#606763] dark:text-stone-400 mt-1">
-                Se descontará {dose.dose_amount} {dose.dose_unit} del inventario disponible.
+                Se descontará {formatDoseAmount(dose.dose_amount)} {dose.dose_unit} del inventario disponible.
               </p>
             )}
           </div>
@@ -193,7 +194,7 @@ export function DoseActionModal({ dose, isOpen, onClose, onSuccess }: DoseAction
               phone: KiraRepository.getSettings().whatsapp_phone,
               petName: KiraRepository.getActivePet()?.name || 'Mascota',
               medicationName: dose.medication.name,
-              doseAmount: dose.dose_amount,
+              doseAmount: formatDoseAmount(dose.dose_amount),
               doseUnit: dose.dose_unit,
               scheduledTime: dose.scheduled_time,
               instructions: dose.medication.instructions,

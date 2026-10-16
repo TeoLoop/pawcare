@@ -7,6 +7,7 @@ import { KiraRepository } from '@/lib/storage/repository';
 import { ScheduledDose } from '@/types/medication';
 import { CheckCircle2, Clock, Pill, ArrowLeft, ShieldCheck } from 'lucide-react';
 import { PawIcon } from '@/components/ui/paw-icon';
+import { formatDoseAmount } from '@/lib/utils';
 
 export function ConfirmarClient({ token }: { token: string }) {
   const [dose, setDose] = useState<ScheduledDose | null>(null);
@@ -150,7 +151,7 @@ export function ConfirmarClient({ token }: { token: string }) {
                   </div>
                 </div>
                 <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-[#E9EFEA] text-[#274033]">
-                  {dose.dose_amount} {dose.dose_unit}
+                  {formatDoseAmount(dose.dose_amount)} {dose.dose_unit}
                 </span>
               </div>
 

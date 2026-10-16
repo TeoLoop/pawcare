@@ -6,6 +6,7 @@ import { Modal } from '@/components/ui/modal';
 import { Medication, FrequencyType } from '@/types/medication';
 import { KiraRepository } from '@/lib/storage/repository';
 import { generateScheduleDoses, getLocalDateString } from '@/lib/date-utils';
+import { formatDoseAmount, parseDoseAmount } from '@/lib/utils';
 import { Plus, Trash2, Eye } from 'lucide-react';
 
 interface MedicationModalProps {
@@ -34,7 +35,7 @@ export function MedicationModal({
   const [name, setName] = useState('');
   const [activeSubstance, setActiveSubstance] = useState('');
   const [presentation, setPresentation] = useState('Comprimidos masticables');
-  const [doseAmount, setDoseAmount] = useState<number>(1);
+  const [doseAmount, setDoseAmount] = useState<string>('1');
   const [doseUnit, setDoseUnit] = useState('comprimido');
   const [instructions, setInstructions] = useState('');
   const [notes, setNotes] = useState('');
@@ -54,7 +55,7 @@ export function MedicationModal({
         setName(medicationToEdit.name);
         setActiveSubstance(medicationToEdit.active_substance || '');
         setPresentation(medicationToEdit.presentation);
-        setDoseAmount(medicationToEdit.dose_amount);
+        setDoseAmount(formatDoseAmount(medicationToEdit.dose_amount));
         setDoseUnit(medicationToEdit.dose_unit);
         setInstructions(medicationToEdit.instructions || '');
         setNotes(medicationToEdit.notes || '');
@@ -73,7 +74,7 @@ export function MedicationModal({
         setName('');
         setActiveSubstance('');
         setPresentation('Comprimidos masticables');
-        setDoseAmount(1);
+        setDoseAmount('1');
         setDoseUnit('comprimido');
         setInstructions('');
         setNotes('');
@@ -131,7 +132,13 @@ export function MedicationModal({
     e.preventDefault();
     if (!name.trim()) return;
 
-    setIsSubmitting(true);
+    const parsedDose = parseDoseAmount(doseAmount);
+    if (parsedDose <= 0) {
+      alert('Por favor ingresá una dosis válida mayor a 0 (ej: 1/2, 1/4, 1).');
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       const pet = KiraRepository.getPet();
 
@@ -142,7 +149,7 @@ export function MedicationModal({
           name: name.trim(),
           active_substance: activeSubstance.trim() || undefined,
           presentation,
-          dose_amount: Number(doseAmount),
+          dose_amount: parsedDose,
           dose_unit: doseUnit.trim(),
           instructions: instructions.trim() || undefined,
           notes: notes.trim() || undefined,
@@ -236,18 +243,42 @@ export function MedicationModal({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-[#222624] mb-1">
-              Dosis por toma <span className="text-[#C34A3E]">*</span>
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-semibold text-[#222624] dark:text-stone-200">
+                Dosis por toma <span className="text-[#C34A3E]">*</span>
+              </label>
+              {parseDoseAmount(doseAmount) > 0 && (
+                <span className="text-[10px] text-[#3E5A4D] dark:text-emerald-400 font-medium">
+                  Numérico: {parseDoseAmount(doseAmount)} {doseUnit}
+                </span>
+              )}
+            </div>
             <input
-              type="number"
-              step="any"
-              min="0.01"
+              type="text"
               required
+              placeholder="Ej: 1/2, 1/4, 1, 0.5..."
               value={doseAmount}
-              onChange={(e) => setDoseAmount(Number(e.target.value))}
-              className="w-full text-xs px-3 py-2 rounded-xl border border-[#E5E1D6] bg-white focus:outline-none focus:ring-2 focus:ring-[#3E5A4D]"
+              onChange={(e) => setDoseAmount(e.target.value)}
+              className="w-full text-xs px-3 py-2 rounded-xl border border-[#E5E1D6] dark:border-stone-700 bg-white dark:bg-stone-850 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-[#3E5A4D]"
             />
+            {/* Quick fraction chips */}
+            <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+              <span className="text-[10px] text-[#8E9490] mr-0.5">Rápido:</span>
+              {['1/4', '1/2', '3/4', '1', '1 1/2', '2'].map((frac) => (
+                <button
+                  key={frac}
+                  type="button"
+                  onClick={() => setDoseAmount(frac)}
+                  className={`text-[10px] px-2 py-0.5 rounded-md font-semibold transition-colors ${
+                    doseAmount === frac
+                      ? 'bg-[#3E5A4D] text-white shadow-2xs'
+                      : 'bg-[#FAF8F5] dark:bg-stone-800 text-[#606763] dark:text-stone-300 hover:bg-[#E9EFEA] hover:text-[#274033] border border-[#E5E1D6] dark:border-stone-700'
+                  }`}
+                >
+                  {frac}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div>

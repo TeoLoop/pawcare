@@ -2,6 +2,7 @@
 import { jsPDF } from 'jspdf';
 import { KiraRepository } from '@/lib/storage/repository';
 import { formatInMontevideo } from '@/lib/date-utils';
+import { formatDoseAmount } from '@/lib/utils';
 
 export function generateVeterinarySummaryPdf(): jsPDF {
   const doc = new jsPDF({
@@ -92,7 +93,7 @@ export function generateVeterinarySummaryPdf(): jsPDF {
       doc.setFontSize(9.5);
       doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
       const activeSub = med.active_substance ? ` (${med.active_substance})` : '';
-      doc.text(`• ${med.name}${activeSub} — ${med.dose_amount} ${med.dose_unit}`, 16, y);
+      doc.text(`• ${med.name}${activeSub} — ${formatDoseAmount(med.dose_amount)} ${med.dose_unit}`, 16, y);
       y += 4.5;
 
       doc.setFont('helvetica', 'normal');

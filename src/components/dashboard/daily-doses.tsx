@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { ScheduledDose, DoseStatus } from '@/types/medication';
 import { Clock, CheckCircle2, XCircle, AlertTriangle, Pill, MessageSquare } from 'lucide-react';
 import { DoseActionModal } from './dose-action-modal';
-import { cn } from '@/lib/utils';
+import { cn, formatDoseAmount } from '@/lib/utils';
 import { buildWhatsAppDirectLink } from '@/lib/whatsapp/client';
 import { KiraRepository } from '@/lib/storage/repository';
 
@@ -109,7 +109,7 @@ export function DailyDoses({ doses, onRefresh }: DailyDosesProps) {
                     {getStatusBadge(dose.status)}
                   </div>
                   <p className="text-xs text-[#606763] mt-0.5">
-                    {dose.dose_amount} {dose.dose_unit} • {dose.medication?.presentation}
+                    {formatDoseAmount(dose.dose_amount)} {dose.dose_unit} • {dose.medication?.presentation}
                   </p>
                   {dose.medication?.instructions && (
                     <p className="text-[11px] text-[#3E5A4D] font-medium mt-1">
@@ -132,7 +132,7 @@ export function DailyDoses({ doses, onRefresh }: DailyDosesProps) {
                       phone: KiraRepository.getSettings().whatsapp_phone,
                       petName: KiraRepository.getActivePet()?.name || 'Mascota',
                       medicationName: dose.medication?.name || '',
-                      doseAmount: dose.dose_amount,
+                      doseAmount: formatDoseAmount(dose.dose_amount),
                       doseUnit: dose.dose_unit,
                       scheduledTime: dose.scheduled_time,
                       instructions: dose.medication?.instructions,

@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { formatDoseAmount } from '@/lib/utils';
 import { KiraRepository } from '@/lib/storage/repository';
 import { Medication, ScheduledDose } from '@/types/medication';
 import { StockForecast } from '@/types/inventory';
@@ -239,7 +240,7 @@ export default function MedicacionPage() {
                     </div>
 
                     <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-[#E9EFEA] text-[#274033] dark:bg-emerald-950/50 dark:border dark:border-emerald-800 dark:text-emerald-300 shrink-0">
-                      {med.dose_amount} {med.dose_unit}
+                      {formatDoseAmount(med.dose_amount)} {med.dose_unit}
                     </span>
                   </div>
 
