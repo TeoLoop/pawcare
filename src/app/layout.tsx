@@ -18,10 +18,15 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: 'PawCare — Gestión de Salud y Medicación de Mascotas',
   description: 'Aplicación para gestionar medicamentos, recordatorios prácticos de WhatsApp y seguimiento de salud de tus mascotas.',
+  manifest: '/manifest.webmanifest',
   icons: {
-    icon: '/icon.svg',
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
     shortcut: '/icon.svg',
-    apple: '/icon.svg',
+    apple: [
+      { url: '/apple-icon.svg', type: 'image/svg+xml' },
+    ],
   },
 };
 

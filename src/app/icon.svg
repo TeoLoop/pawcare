@@ -1,6 +1,54 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="128" fill="#3E5A4D" />
-  <g transform="translate(64, 64) scale(0.75)" fill="#FFFFFF">
-    <path d="M256 224c-79.41 0-192 122.76-192 200.25 0 34.9 26.81 55.75 71.74 55.75 48.84 0 81.09-25.08 120.26-25.08 39.51 0 71.85 25.08 120.26 25.08 44.93 0 71.74-20.85 71.74-55.75C448 346.76 335.41 224 256 224zm-147.28-12.61c-38.4-36.52-86.3-46-107-21.18-20.67 24.78-6.79 74.04 31.6 110.56 38.4 36.52 86.3 46 107 21.18 20.67-24.78 6.79-74.04-31.6-110.56zm160-70.62c-29.21-44.29-73.49-63.57-98.91-43.06-25.41 20.51-22.38 72.82 6.83 117.11 29.21 44.29 73.49 63.57 98.91 43.06 25.41-20.51 22.38-72.82-6.83-117.11zm174.56 70.62c-38.4-36.52-86.3-46-107-21.18-20.67 24.78-6.79 74.04 31.6 110.56 38.4 36.52 86.3 46 107 21.18 20.67-24.78 6.79-74.04 31.6-110.56zm-87.28-70.62c-29.21-44.29-73.49-63.57-98.91-43.06-25.41 20.51-22.38 72.82 6.83 117.11 29.21 44.29 73.49 63.57 98.91 43.06 25.41-20.51 22.38-72.82-6.83-117.11z" />
+  <defs>
+    <!-- Background Brand Gradient (Deep Sage & Emerald Green) -->
+    <linearGradient id="pawBgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4B705E" />
+      <stop offset="45%" stop-color="#385848" />
+      <stop offset="100%" stop-color="#1E362B" />
+    </linearGradient>
+
+    <!-- Subtle Bevel & Highlight Border -->
+    <linearGradient id="pawBorderGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.32" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.06" />
+    </linearGradient>
+
+    <!-- Ambient Shadow for Paw Silhouette -->
+    <filter id="pawDropShadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#0E1A14" flood-opacity="0.4" />
+    </filter>
+
+    <!-- Badge Drop Shadow -->
+    <filter id="careBadgeShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#0E1A14" flood-opacity="0.45" />
+    </filter>
+  </defs>
+
+  <!-- Squircle Base for Web & Mobile App -->
+  <rect width="512" height="512" rx="118" fill="url(#pawBgGradient)" />
+  <rect x="3" y="3" width="506" height="506" rx="115" fill="none" stroke="url(#pawBorderGlow)" stroke-width="4" />
+
+  <!-- Ambient Light Reflection -->
+  <circle cx="120" cy="100" r="180" fill="#FFFFFF" opacity="0.06" />
+
+  <!-- Free Open-Source Paw Silhouette (Phosphor Icons - MIT License) -->
+  <g transform="translate(85, 78) scale(1.34)" filter="url(#pawDropShadow)">
+    <path
+      d="M240,108a28,28,0,1,1-28-28A28,28,0,0,1,240,108ZM72,108a28,28,0,1,0-28,28A28,28,0,0,0,72,108ZM92,88A28,28,0,1,0,64,60,28,28,0,0,0,92,88Zm72,0a28,28,0,1,0-28-28A28,28,0,0,0,164,88Zm23.12,60.86a35.3,35.3,0,0,1-16.87-21.14,44,44,0,0,0-84.5,0A35.25,35.25,0,0,1,69,148.82,40,40,0,0,0,88,224a39.48,39.48,0,0,0,15.52-3.13,64.09,64.09,0,0,1,48.87,0,40,40,0,0,0,34.73-72Z"
+      fill="#FFFFFF"
+    />
+  </g>
+
+  <!-- Veterinary & Health Care Plus Badge -->
+  <g filter="url(#careBadgeShadow)">
+    <circle cx="400" cy="400" r="54" fill="#FFFFFF" />
+    <circle cx="400" cy="400" r="47" fill="#307855" />
+    <path
+      d="M400 376 V424 M376 400 H424"
+      stroke="#FFFFFF"
+      stroke-width="11"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
   </g>
 </svg>
